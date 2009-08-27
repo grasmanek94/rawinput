@@ -10,7 +10,7 @@ using std::vector;
 using std::wcout;
 using std::wcerr;
 
-namespace Engin5
+namespace RawInput
 {
 	Input::Input(const HWND hwnd) try
 		: ri_devices_(0),
@@ -132,7 +132,7 @@ namespace Engin5
 	{
 		//HRAWINPUT hRawInput = reinterpret_cast<HRAWINPUT>(lParam);
 
-		unsigned int pcbSize(sizeof(RAWINPUT));
+		unsigned int pcbSize(sizeof(RAWINPUT)); // no magic numbers
 		//unsigned int result;
 
 		// Returns 0 if correct, in pcbSize return buffer size
@@ -173,7 +173,10 @@ namespace Engin5
 		}
 	}
 	
-/*	LRESULT Input::UpdateBuff(const LPARAM & lParam)
+	/*
+	 * pre strict c++
+
+	LRESULT Input::UpdateBuff(const LPARAM & lParam)
 	{
 		HRAWINPUT	hRawInput	 = (HRAWINPUT)lParam;
 		RAWINPUT	* pData		 = 0;
@@ -209,7 +212,23 @@ namespace Engin5
 		}
 
 		return ::DefRawInputProc(&pData, raw_data, cbSizeHeader);
-	}*/
+	}
+	*/
+	
+	bool Input::KeyUp( const unsigned short & button ) const
+	{
+		return ri_keyboard_.VKey == button && ri_keyboard_.Flags == RI_KEY_BREAK;
+	}
+	
+	bool Input::KeyDown( const unsigned short & button ) const
+	{
+		return ri_keyboard_.VKey == button && ri_keyboard_.Flags == RI_KEY_MAKE;
+	}
+	
+	bool Input::KeyHeld( const unsigned short & button ) const
+	{
+		return ri_keyboard_.VKey == button;
+	}
 	
 	bool Input::MouseEvent(const unsigned short & button) const
 	{
@@ -222,55 +241,10 @@ namespace Engin5
 		y = ri_mouse_.lLastY;
 	}
 	
-	unsigned int Input::GetRegisteredInputDevicesCount(void)
-	{   
-		unsigned int size = ri_devices_.size();
-
-		return ::GetRegisteredRawInputDevices(
-			&ri_devices_[0],
-			&size,
-			sizeof(RAWINPUTDEVICE));
-	}
-	
 	void Input::Clean(void)
 	{
 		ri_mouse_	 = RAWMOUSE();
 		ri_keyboard_ = RAWKEYBOARD();
-		//ri_hid_	 = RAWHID();
+		ri_hid_	 = RAWHID();
 	}
 }
-
-/*
-HKEY hKeyVM = NULL;
-// If this fails, then something is amiss (there should be a control key), but, it isn't really a bail-out situation
-if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-	(strRegKey + "\\Control").c_str(),
-	0,
-	KEY_QUERY_VALUE,
-	&hKeyVM) == ERROR_SUCCESS) {
-	// Retrieve data type and size (including null)
-	if (RegQueryValueEx(hKeyVM,
-		"ActiveService",
-		NULL,
-		&dwKeyType,
-		NULL,
-		&dwKeySize) == ERROR_SUCCESS) {
-		std::string strActiveService;
-		// Size the buffer accordingly
-		strActiveService.resize(dwKeySize-1);
-		// Added the const_cast for clarity, though it isn't necessary.
-		if (RegQueryValueEx(hKeyVM,
-			"ActiveService",
-			NULL,
-			&dwKeyType,
-			(BYTE*)const_cast<char*>(strActiveService.c_str()),
-			&dwKeySize) == ERROR_SUCCESS) {
-				if (stricmp(strActiveService.c_str(),"vmkbd") == 0) {
-					// It's the vmware keyboard, not a physical keyboard.
-					dwType = TYPE_VMWARE_KBD; //unsupported
-				}
-		}
-	}
-	RegCloseKey(hKeyVM);
-}
-*/

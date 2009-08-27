@@ -26,11 +26,10 @@
 #include <string>
 #include <vector>
 
-namespace Engin5
-{
-	// RawInput index http://msdn.microsoft.com/en-us/library/ms645536%28VS.85%29.aspx
-	// VKey codes http://msdn.microsoft.com/en-us/library/ms645540%28VS.85%29.aspx
+// RawInput index http://msdn.microsoft.com/en-us/library/ms645536%28VS.85%29.aspx
 
+namespace RawInput
+{
 	class INPUT_API Input {
 	public:			
 		explicit Input(const HWND hwnd = 0);
@@ -39,24 +38,14 @@ namespace Engin5
 		void Update(const LPARAM & lParam);
 		//LRESULT UpdateBuff(const LPARAM & lParam); // Bugged?
 
-		bool KeyUp(const unsigned short & button) const {
-			return ri_keyboard_.VKey == button && ri_keyboard_.Flags == RI_KEY_BREAK;
-		}
-
-		bool KeyDown(const unsigned short & button) const {
-			return ri_keyboard_.VKey == button && ri_keyboard_.Flags == RI_KEY_MAKE;
-		}
-
-		bool KeyHeld(const unsigned short & button) const {
-			return ri_keyboard_.VKey == button;
-		}
+		bool KeyUp(const unsigned short & button) const;
+		bool KeyDown(const unsigned short & button) const;
+		bool KeyHeld(const unsigned short & button) const;
 
 		bool MouseEvent(const unsigned short & button) const;
 		void MousePos(long & x, long & y) const;
 
 		void Clean(void);
-
-		unsigned int GetRegisteredInputDevicesCount(void);
 	private:
 		//http://www.microsoft.com/whdc/archive/HID_HWID.mspx
 		const static unsigned short HID_USAGE_PAGE				= 0x01;
@@ -64,7 +53,7 @@ namespace Engin5
 		const static unsigned short HID_DEVICE_SYSTEM_MOUSE		= 0x02; // also 0x01;
 		const static unsigned short HID_DEVICE_SYSTEM_KEYBOARD	= 0x06; // also 0x07;
 		const static unsigned short HID_DEVICE_SYSTEM_GAME		= 0x04; // also 0x05;
-		//const static USHORT HID_DEVICE_SYSTEM_CONTROL	= 0x80;
+		//const static unsigned short HID_DEVICE_SYSTEM_CONTROL	= 0x80;
 
 		std::vector<RAWINPUTDEVICE> ri_devices_;
 
@@ -95,6 +84,7 @@ namespace Engin5
 		};
 	}
 
+	// VKey codes http://msdn.microsoft.com/en-us/library/ms645540%28VS.85%29.aspx
 	namespace Keyboard
 	{
 		const enum keyboard_vkeys : unsigned short {
