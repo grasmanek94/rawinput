@@ -33,7 +33,6 @@ case WM_INPUT:
     input->Update(lParam);
     return ::DefWindowProc(hWnd, message, wParam, lParam);
 }}}
-*Notes*: until INPUT_SINK is implemented, user should only Update() while application has focus.
 
 ----
 == Querying for user input ==
