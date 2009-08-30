@@ -5,7 +5,17 @@
 
 Right now it's very simple, not much is needed, just construct an Input object, update on user's WndProc function, then query for input.
 
-If the included vcprojet file is used, it should generate a dll file for the user.
+If the included vcprojet file is used, it should generate a dll file for the user, otherwise this needs to be removed:
+
+{{{
+#pragma warning(disable:4251)
+
+#ifdef INPUT_EXPORTS
+#	define INPUT_API __declspec(dllexport)
+#else
+#	define INPUT_API __declspec(dllimport)
+#endif
+}}}
 
 Please take notice that this info is likely to change at any time.
 
