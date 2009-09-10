@@ -16,8 +16,8 @@
 
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef VC_EXTRALEAN
-#define VC_EXTRALEAN
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #endif
 
 #ifndef STRICT
@@ -28,7 +28,15 @@
 
 namespace Mouse
 {
-	const enum mouse_buttons : unsigned short {
+	const enum mouse_rawstate : unsigned long {
+		BUTTON_LEFT		= 1L,
+		BUTTON_RIGHT	= 1L << 1,
+		BUTTON_MIDDLE	= 1L << 2,
+		BUTTON_4		= 1L << 3,
+		BUTTON_5		= 1L << 4
+	};
+
+	const enum mouse_flags : unsigned short {
 		BUTTON0_DOWN	= RI_MOUSE_BUTTON_1_DOWN,
 		BUTTON0_UP		= RI_MOUSE_BUTTON_1_UP,
 
