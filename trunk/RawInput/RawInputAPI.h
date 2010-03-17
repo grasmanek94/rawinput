@@ -1,34 +1,28 @@
-#pragma once
-#pragma warning(disable:4251)
-
 //////////////////////////////////////////////////////////////////////////
 
 // Project http://code.google.com/p/rawinput/
-// RawInput http://msdn.microsoft.com/en-us/library/ms645536%28VS.85%29.aspx
+
+// MSDN RawInput http://msdn.microsoft.com/en-us/library/ms645536%28VS.85%29.aspx
+
+//////////////////////////////////////////////////////////////////////////
+
+#pragma once
+
+#include "stdafx.h"
 
 //////////////////////////////////////////////////////////////////////////
 
 #ifdef RAWINPUT_EXPORTS
-#	define RAWINPUT_API __declspec(dllexport)
+#define RAWINPUT_API __declspec(dllexport)
 #else
-#	define RAWINPUT_API __declspec(dllimport)
+#define RAWINPUT_API __declspec(dllimport)
 #endif
 
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-
-#ifndef STRICT
-#define STRICT
-#endif
-
-#include <Windows.h>
-
 namespace Mouse
 {
-	const enum mouse_rawstate : unsigned long {
+	const enum mouse_rawstate {
 		BUTTON_0		= 1,
 		BUTTON_1		= 1 << 1,
 		BUTTON_2		= 1 << 2,
@@ -36,7 +30,7 @@ namespace Mouse
 		BUTTON_4		= 1 << 4
 	};
 
-	const enum mouse_flags : unsigned short {
+	const enum mouse_flags {
 		BUTTON_0_DOWN	= RI_MOUSE_BUTTON_1_DOWN,
 		BUTTON_0_UP		= RI_MOUSE_BUTTON_1_UP,
 
@@ -59,7 +53,7 @@ namespace Mouse
 // VKey codes http://msdn.microsoft.com/en-us/library/ms645540%28VS.85%29.aspx
 namespace Keyboard
 {
-	const enum keyboard_vkeys : unsigned short {
+	const enum keyboard_vkeys {
 		VK_0 = 0x30,
 		VK_1,
 		VK_2,
