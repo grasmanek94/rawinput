@@ -1,14 +1,20 @@
 #pragma once
 
 #include "RawInputAPI.h"
+
 #include "RawDevice.h"
 
 #include <exception>
-#include <string>
-#include <sstream>
+
 #include <map>
+
 #include <vector>
+
 #include <memory>
+
+#include <string>
+
+#include <sstream>
 
 #ifndef NDEBUG
 #include <iostream>
@@ -19,12 +25,25 @@ namespace RawInput
 	class Input_Exception : public std::exception {
 		Input_Exception operator=(const Input_Exception &);
 	public:
-		const HRESULT hresult;
+		const HRESULT hresult_;
 
-		explicit Input_Exception(const char * const c = nullptr, HRESULT hr = HRESULT())
-			: exception(c),
-			hresult(hr)
+		explicit Input_Exception(const std::string msg, HRESULT hr = HRESULT())
+			: exception(msg.data()),
+			hresult_(hr)
 		{
+		}
+
+		void Show(void)
+		{
+			std::wstringstream ss;
+			
+			ss << this->what() << TEXT(" has thrown an exception.\n\nCode: ") << hresult_;
+
+			::MessageBox(
+				nullptr,
+				ss.str().data(),
+				TEXT("RawInput"),
+				MB_ICONERROR);
 		}
 	};
 
@@ -43,10 +62,8 @@ namespace RawInput
 				RID_INPUT,
 				rData,
 				&pcbSize,
-				sizeof(RAWINPUTHEADER)) < 0) throw Input_Exception("GetRawInputData()", GetLastError());
+				sizeof(RAWINPUTHEADER)) == -1) throw Input_Exception("GetRawInputData()", GetLastError());
 		}
-
-		~UnBuffered(void) { }
 	};
 
 	class Buffered {
@@ -78,7 +95,7 @@ namespace RawInput
 				&pcbSize,
 				sizeof(RAWINPUTHEADER));
 
-			if (rBuff < 0) throw Input_Exception("GetRawInputBuffer()", GetLastError());
+			if (rBuff == -1) throw Input_Exception("GetRawInputBuffer()", GetLastError());
 
 			if (rBuff == 0) return;
 
@@ -96,8 +113,6 @@ namespace RawInput
 				}
 			}*/
 		}
-
-		~Buffered(void) { }
 	};
 
 	template
@@ -106,20 +121,32 @@ namespace RawInput
 	>
 	class Input : public UpdatePolicy
 	{
-		typedef std::tr1::shared_ptr<RawDevice> ptr_rawdev;
+		typedef std::tr1::shared_ptr<RawDevice> PtrRawdev;
 
-		typedef std::map<HANDLE, ptr_rawdev> ri_rawdev_map;
+		typedef std::map<HANDLE, PtrRawdev> RawdevMap;
 
-		typedef std::vector<RAWINPUTDEVICE> ri_device_vec;
+		typedef std::vector<RAWINPUTDEVICE> DeviceVec;
 
 		typedef std::wstring Str;
 
+		//http://www.microsoft.com/whdc/archive/HID_HWID.mspx
+		enum usage_page {
+			HID_USAGE_PAGE				= 0x01
+		};
+
+		enum usage {
+			HID_DEVICE_SYSTEM_MOUSE		= 0x02,
+			HID_DEVICE_SYSTEM_KEYBOARD	= 0x06,
+			HID_DEVICE_SYSTEM_GAME		= 0x04
+		};
+
 		Input(const Input &);
+
 		Input & operator=(const Input &);
 	public:
 		/*
 		 * @param1: handle to the target window. If NULL it follows the keyboard focus.
-		 * @param2, 3, 4: flags for mouse, keyboard and hid, respectibly.
+		 * @param2, 3, 4: flags for mouse, keyboard and hid, respectively.
 		 */
 		explicit Input(const HWND, const DWORD mouse_flags = 0, const DWORD keyb_flags = 0, const DWORD hid_flags = 0);
 
@@ -185,17 +212,6 @@ namespace RawInput
 		 */
 		void MousePos(long *, long *) const;
 	private:
-		//http://www.microsoft.com/whdc/archive/HID_HWID.mspx
-		enum usage_page {
-			HID_USAGE_PAGE				= 0x01
-		};
-
-		enum usage {
-			HID_DEVICE_SYSTEM_MOUSE		= 0x02,
-			HID_DEVICE_SYSTEM_KEYBOARD	= 0x06,
-			HID_DEVICE_SYSTEM_GAME		= 0x04
-		};
-
 		/*
 		 * GetSystemDevices() returns a vector with all the devices
 		 * connected to the system at the time of call.
@@ -221,24 +237,26 @@ namespace RawInput
 		 *
 		 * @param1: DWORD corresponding to a device type
 		 */
-		ptr_rawdev CreateDevice(DWORD);
+		PtrRawdev CreateDevice(DWORD);
 
-		ri_device_vec	ri_registered_devices_;
+		DeviceVec	ri_registered_devices_;
 
-		ri_rawdev_map	ri_devs_;
+		RawdevMap	ri_devs_;
 
-		RawMouse		* ri_mouse_;
-		RawKeyboard		* ri_keyboard_;
-		RawHID			* ri_hid_;
+		RawMouse	* sys_mouse_;
+
+		RawKeyboard	* sys_keyboard_;
+
+		RawHID		* sys_hid_;
 	};
 
 	template<class UpdatePolicy>
 	Input<UpdatePolicy>::Input(const HWND hwnd, const DWORD mouse_flags, const DWORD keyb_flags, const DWORD hid_flags)
 		: ri_registered_devices_(),
 		ri_devs_(),
-		ri_mouse_(nullptr),
-		ri_keyboard_(nullptr),
-		ri_hid_(nullptr)
+		sys_mouse_(),
+		sys_keyboard_(),
+		sys_hid_()
 	{
 		try {
 			auto & ri_sys_dev(this->GetSystemDevices());
@@ -284,15 +302,7 @@ namespace RawInput
 				sizeof(RAWINPUTDEVICE))) throw Input_Exception("RegisterRawInputDevices()", GetLastError());
 		}
 		catch (Input_Exception & e) {
-			std::wstringstream ss;
-			
-			ss << e.what() << TEXT(" has thrown an exception.\n\nCode: ") << e.hresult;
-
-			::MessageBox(
-				hwnd,
-				ss.str().data(),
-				TEXT("RawInput"),
-				MB_ICONERROR);
+			e.Show();
 		}
 	}
 
@@ -342,13 +352,13 @@ namespace RawInput
 	template <class UpdatePolicy>
 	RID_DEVICE_INFO Input<UpdatePolicy>::GetDeviceInfo(HANDLE hDevice) const
 	{
-		std::size_t pcbSize(sizeof(RID_DEVICE_INFO));
-
 		RID_DEVICE_INFO pData;
 
 		// If uiCommand is RIDI_DEVICEINFO, set RID_DEVICE_INFO.cbSize to
 		// sizeof(RID_DEVICE_INFO) before calling GetRawInputDeviceInfo.
 		pData.cbSize = sizeof(RID_DEVICE_INFO);
+
+		std::size_t pcbSize = sizeof(RID_DEVICE_INFO);
 
 		// Returns bytes copied to pData, gets input data in pData.
 		if (::GetRawInputDeviceInfo(
@@ -386,31 +396,27 @@ namespace RawInput
 	}
 
 	template <class UpdatePolicy>
-	typename Input<UpdatePolicy>::ptr_rawdev Input<UpdatePolicy>::CreateDevice(DWORD type)
+	typename Input<UpdatePolicy>::PtrRawdev Input<UpdatePolicy>::CreateDevice(DWORD type)
 	{
-		ptr_rawdev r;
-
 		switch (type) {
 			case RIM_TYPEMOUSE:
-				r.reset(ri_mouse_ == nullptr	// if system device is not set
-					? ri_mouse_ = new RawMouse	// use the new device as the system device and return it
-					: new RawMouse);			// else just return a new device.
+				return PtrRawdev(sys_mouse_ == nullptr	// if system device is not set
+					? sys_mouse_ = new RawMouse			// use the new device as the system device and return it
+					: new RawMouse);					// else just create a new device.
 				break;
 			case RIM_TYPEKEYBOARD:
-				r.reset(ri_keyboard_ == nullptr
-					? ri_keyboard_ = new RawKeyboard
+				return PtrRawdev(sys_keyboard_ == nullptr
+					? sys_keyboard_ = new RawKeyboard
 					: new RawKeyboard);
 				break;
 			case RIM_TYPEHID:
-				r.reset(ri_hid_ == nullptr
-					? ri_hid_ = new RawHID
+				return PtrRawdev(sys_hid_ == nullptr
+					? sys_hid_ = new RawHID
 					: new RawHID);
 				break;
 			default:
 				throw Input_Exception("CreateDevice() recieved a bad type.");
 		}
-
-		return r;
 	}
 
 	template <class UpdatePolicy>
@@ -420,24 +426,26 @@ namespace RawInput
 
 		this->UpdatePolicy::Update(reinterpret_cast<HRAWINPUT>(lParam), &rData);
 
-		auto it = ri_devs_.find(rData.header.hDevice);
+		auto it = ri_devs_.find(rData.header.hDevice); // look for device
 
-		if (it != ri_devs_.end()) { // if device found
-			it->second.get()->Read(rData); // read data
+		if (it != ri_devs_.end()) {		// if device found
+			it->second->Read(rData);	// read data
 		}
-		else { // else add new device
+		else {							// else add new device and read data
 			auto newdev = ri_devs_[rData.header.hDevice] = this->CreateDevice(rData.header.dwType);
 
 			newdev->Read(rData);
 		}
 
-		return ::DefWindowProc(hwnd, message, wParam, lParam);
+		return GET_RAWINPUT_CODE_WPARAM(wParam) == RIM_INPUT
+			? ::DefWindowProc(hwnd, message, wParam, lParam)
+			: 0;
 	}
 
 	template <class UpdatePolicy>
 	LRESULT Input<UpdatePolicy>::Change(WPARAM wParam, LPARAM lParam)
 	{
-		switch (wParam) {
+		switch (GET_RAWINPUT_CODE_WPARAM(wParam)) {
 			case GIDC_ARRIVAL:
 				// Handle arrival
 
@@ -470,36 +478,36 @@ namespace RawInput
 	template <class UpdatePolicy>
 	bool Input<UpdatePolicy>::KeyUp(unsigned short key) const
 	{
-		return ri_keyboard_->KeyUp(key);
+		return sys_keyboard_->KeyUp(key);
 	}
 
 	template <class UpdatePolicy>
 	bool Input<UpdatePolicy>::KeyDown(unsigned short key) const
 	{
-		return ri_keyboard_->KeyDown(key);
+		return sys_keyboard_->KeyDown(key);
 	}
 
 	template <class UpdatePolicy>
 	bool Input<UpdatePolicy>::KeyHeld(unsigned short key) const
 	{
-		return ri_keyboard_->KeyHeld(key);
+		return sys_keyboard_->KeyHeld(key);
 	}
 
 	template <class UpdatePolicy>
 	bool Input<UpdatePolicy>::MouseButtonHeld(unsigned long button) const
 	{
-		return ri_mouse_->ButtonHeld(button);
+		return sys_mouse_->ButtonHeld(button);
 	}
 
 	template <class UpdatePolicy>
 	bool Input<UpdatePolicy>::MouseButton(unsigned short flag) const
 	{
-		return ri_mouse_->Button(flag);
+		return sys_mouse_->Button(flag);
 	}
 
 	template <class UpdatePolicy>
 	void Input<UpdatePolicy>::MousePos(long * x, long * y) const
 	{
-		ri_mouse_->GetPosXY(x, y);
+		sys_mouse_->GetPosXY(x, y);
 	}
 }

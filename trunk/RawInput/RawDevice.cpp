@@ -12,6 +12,11 @@ namespace RawInput
 	{
 	}
 
+	RawMouse::RawMouse(void)
+		: ri_data_()
+	{
+	}
+
 	RawMouse::~RawMouse(void)
 	{
 	}
@@ -31,7 +36,7 @@ namespace RawInput
 //			<< TEXT('\t') << ri_data_.ulExtraInformation
 			<< TEXT('\n');
 		#endif
-			
+
 		return ri;
 	}
 
@@ -40,30 +45,36 @@ namespace RawInput
 		ri_data_ = RAWMOUSE();
 	}
 
-	const RAWMOUSE & RawMouse::GetData(void)
+	const RAWMOUSE & RawMouse::GetData(void) const
 	{
 		return ri_data_;
 	}
 
 	bool RawMouse::Button(unsigned short button) const
 	{
-		return ri_data_.usButtonFlags == button;
+		return ri_data_.usButtonFlags & button;
 	}
 
 	bool RawMouse::ButtonHeld(unsigned short button) const
 	{
-		return ri_data_.ulRawButtons == button;
+		return ri_data_.ulRawButtons & button;
 	}
 
 	void RawMouse::GetPosXY(long * x, long * y) const
 	{
 		*x = ri_data_.lLastX;
+
 		*y = ri_data_.lLastY;
 	}
 
 	short RawMouse::GetWheelDelta(void) const
 	{
 		return ri_data_.usButtonData;
+	}
+
+	RawKeyboard::RawKeyboard(void)
+		: ri_data_()
+	{
 	}
 
 	RawKeyboard::~RawKeyboard(void)
@@ -91,39 +102,29 @@ namespace RawInput
 		ri_data_ = RAWKEYBOARD();
 	}
 
-	const RAWKEYBOARD & RawKeyboard::GetData(void)
+	const RAWKEYBOARD & RawKeyboard::GetData(void) const
 	{
 		return ri_data_;
 	}
 
 	bool RawKeyboard::KeyUp(unsigned short key) const
 	{
-		return (
-				ri_data_.VKey == key
-			) && (
-				ri_data_.Flags == RI_KEY_BREAK ||
-				ri_data_.Flags == RI_KEY_BREAK + RI_KEY_E0
-			);
+		return ri_data_.VKey == key && ri_data_.Flags & RI_KEY_BREAK;
 	}
 
 	bool RawKeyboard::KeyDown(unsigned short key) const
 	{
-		return (
-				ri_data_.VKey == key
-			) && (
-				ri_data_.Flags == RI_KEY_MAKE ||
-				ri_data_.Flags == RI_KEY_MAKE + RI_KEY_E0
-			);
+		return ri_data_.VKey == key && ri_data_.Flags & RI_KEY_MAKE;
 	}
 
 	bool RawKeyboard::KeyHeld(unsigned short key) const
 	{
-		return (
-				ri_data_.VKey == key
-			) && (
-				ri_data_.Flags != RI_KEY_BREAK ||
-				ri_data_.Flags != RI_KEY_BREAK + RI_KEY_E0
-			);
+		return ri_data_.VKey == key;
+	}
+
+	RawHID::RawHID(void)
+		: ri_data_()
+	{
 	}
 
 	RawHID::~RawHID(void)
@@ -135,9 +136,9 @@ namespace RawInput
 		ri_data_ = ri.data.hid;
 
 		#ifndef NDEBUG
-		int tot(ri_data_.dwSizeHid * ri_data_.dwCount);
+		DWORD tot(ri_data_.dwSizeHid * ri_data_.dwCount);
 
-		for (int i = 0; i < tot - 1; ++i) wcout << ri_data_.bRawData[i] << TEXT('\t');
+		for (DWORD i = 0; i < tot - 1; ++i) wcout << ri_data_.bRawData[i] << TEXT('\t');
 
 		wcout << TEXT('\n');
 		#endif
@@ -150,7 +151,7 @@ namespace RawInput
 		ri_data_ = RAWHID();
 	}
 
-	const RAWHID & RawHID::GetData(void)
+	const RAWHID & RawHID::GetData(void) const
 	{
 		return ri_data_;
 	}

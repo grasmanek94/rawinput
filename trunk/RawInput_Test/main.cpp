@@ -6,55 +6,55 @@ Project http://code.google.com/p/rawinput/
 
 #include "..\RawInput\RawInput.h"
 
-#include <iostream>
+typedef RawInput::Input<RawInput::UnBuffered> InputSys;
 
-typedef RawInput::Input<RawInput::UnBuffered> InputUnbuff;
+InputSys * input = nullptr; // It would be best to use a smart pointer.
 
-InputUnbuff * input = nullptr; // It would be best to use a smart pointer.
-
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
 int main(int argc, char * argv[])
 {
+	wchar_t * app_name = TEXT("RawInput Test");
+
 	WNDCLASSEX wndclassex = {
-		sizeof(WNDCLASSEX), // cbSize
-		CS_HREDRAW|CS_VREDRAW, // style
-		WndProc, // lpfnWndProc
-		0, // cbClsExtra
-		0, // cbWndExtra
-		0, // hInstance
-		LoadIcon(0, IDI_APPLICATION), // hIcon
-		LoadCursor(0, IDC_ARROW), // hCursor
-		(HBRUSH)::GetStockObject(WHITE_BRUSH), // hbrBackground
-		0, // lpszMenuName
-		TEXT("RawInput Test"), // lpszClassName
-		0 // hIconSm
+		sizeof(WNDCLASSEX),						// cbSize
+		CS_HREDRAW|CS_VREDRAW,					// style
+		WndProc,								// lpfnWndProc
+		0,										// cbClsExtra
+		0,										// cbWndExtra
+		nullptr,								// hInstance
+		::LoadIcon(nullptr, IDI_APPLICATION),	// hIcon
+		::LoadCursor(nullptr, IDC_ARROW),		// hCursor
+		(HBRUSH)::GetStockObject(NULL_BRUSH),	// hbrBackground
+		nullptr,								// lpszMenuName
+		app_name,								// lpszClassName
+		::LoadIcon(nullptr, IDI_APPLICATION)	// hIconSm
 	};
 
 	::RegisterClassEx(&wndclassex);
 
 	HWND hwnd = ::CreateWindowEx(
-		WS_EX_APPWINDOW,
-		TEXT("RawInput Test"),
-		TEXT("RawInput Test"),
-		WS_OVERLAPPEDWINDOW,
+		WS_EX_OVERLAPPEDWINDOW,
+		app_name,
+		app_name,
+		WS_OVERLAPPEDWINDOW|WS_VISIBLE,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
 		640,
 		480,
 		::GetDesktopWindow(),
-		0,
-		0,
-		0);
+		nullptr,
+		nullptr,
+		nullptr);
 
-	::ShowWindow(hwnd, true);
-
-	input = new InputUnbuff(hwnd);
+	input = new InputSys(hwnd/*, MOUSE_FLAGS, KEYB_FLAGS, HID_FLAGS*/);
 
 	MSG msg = {0};
 
-	do {
-		while (!::PeekMessage(&msg, hwnd, 0U, 0U, PM_NOREMOVE)) {
+	while (msg.message != WM_QUIT) {
+		while (!::PeekMessage(&msg, hwnd, 0u, 0u, PM_NOREMOVE)) {
+			//Do work...
+
 			if (input->KeyUp(VK_END)) ::PostQuitMessage(0);
 
 			if (input->KeyDown(Keyboard::VK_D)) ::PostQuitMessage(0);
@@ -63,29 +63,32 @@ int main(int argc, char * argv[])
 
 			if (input->MouseButton(Mouse::BUTTON_1_DOWN)) ::PostQuitMessage(0);
 
-			// Clean input...
+			// Clean input last...
 			input->Clean();
 		}
 
-		while (::PeekMessage(&msg, hwnd, 0U, 0U, PM_REMOVE)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+		while (::PeekMessage(&msg, nullptr, 0u, 0u, PM_REMOVE)) {
+			::TranslateMessage(&msg);
+			::DispatchMessage(&msg);
 		}
-	} while (msg.message != WM_QUIT);
+	}
 
 	delete input;
 
-	::UnregisterClass(TEXT("RawInput Test"), 0);
+	::UnregisterClass(app_name, nullptr);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message) {
-		case WM_INPUT_DEVICE_CHANGE: // Works only for Windows Vista or greater.
-			return input->Change(wParam, lParam); // Experimental.
-		case WM_INPUT:
-			return input->Update(hWnd, message, wParam, lParam);
-		default:
-			return ::DefWindowProc(hWnd, message, wParam, lParam);
+	case WM_DESTROY:
+		::PostQuitMessage(0);
+		return 0;;
+	case WM_INPUT_DEVICE_CHANGE: // Only for Windows Vista or greater. (WIP)
+		return input->Change(wParam, lParam);
+	case WM_INPUT:
+		return input->Update(hWnd, message, wParam, lParam);
+	default:
+		return ::DefWindowProc(hWnd, message, wParam, lParam);
 	}
 }
