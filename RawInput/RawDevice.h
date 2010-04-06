@@ -14,13 +14,15 @@ namespace RawInput
 
 	class RawMouse : public RawDevice {
 	public:
+		explicit RawMouse(void);
+
 		virtual ~RawMouse(void);
 
 		const RAWINPUT & Read(const RAWINPUT & ri);
 
 		void Clean(void);
 
-		const RAWMOUSE & GetData(void);
+		const RAWMOUSE & GetData(void) const;
 
 		bool Button(unsigned short) const;
 
@@ -35,13 +37,15 @@ namespace RawInput
 
 	class RawKeyboard : public RawDevice {
 	public:
+		explicit RawKeyboard(void);
+
 		virtual ~RawKeyboard(void);
 
 		const RAWINPUT & Read(const RAWINPUT & ri);
 
 		void Clean(void);
 
-		const RAWKEYBOARD & GetData(void);
+		const RAWKEYBOARD & GetData(void) const;
 
 		bool KeyUp(unsigned short) const;
 
@@ -54,13 +58,15 @@ namespace RawInput
 
 	class RawHID : public RawDevice {
 	public:
+		explicit RawHID(void);
+
 		virtual ~RawHID(void);
 
 		const RAWINPUT & Read(const RAWINPUT & ri);
 
 		void Clean(void);
 
-		const RAWHID & GetData(void);
+		const RAWHID & GetData(void) const;
 	private:
 		RAWHID ri_data_;
 	};
