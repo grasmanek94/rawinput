@@ -1,3 +1,28 @@
-#summary MSDN info about WndProc
+#summary info about WndProc's implementation.
 
 * http://msdn.microsoft.com/en-us/library/ms633573(VS.85).aspx *
+
+The WndProc implementation should look like this:
+
+{{{
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message) {
+	case WM_INPUT:
+		return input->Update(hWnd, message, wParam, lParam);
+	default:
+		return ::DefWindowProc(hWnd, message, wParam, lParam);
+	}
+}
+}}}
+
+All RawInput API data is sent to through WM_INPUT messages.
+
+The user just returns RawInput::Update and the system deals with it.
+
+RawInput can also deal with WM_INPUT_DEVICE_CHANGE when running on Windows Vista or greater, just add the following to the messages switch.
+
+{{{
+	case WM_INPUT_DEVICE_CHANGE:
+		return input->Change(wParam, lParam);
+}}}
