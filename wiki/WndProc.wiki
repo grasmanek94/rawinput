@@ -20,7 +20,7 @@ All RawInput_API data is sent to through WM_INPUT messages.
 
 The user just returns RawInput::Update and the system deals with it.
 
-RawInput can also deal with WM_INPUT_DEVICE_CHANGE when running on Windows Vista or greater, just add the following to the messages switch.
+RawInput can also deal with WM_INPUT_DEVICE_CHANGE when running on Windows Vista or greater, just add the following to the message switch.
 
 {{{
 	case WM_INPUT_DEVICE_CHANGE:
