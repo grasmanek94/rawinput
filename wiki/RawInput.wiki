@@ -1,5 +1,3 @@
 #summary This project
 
-* http://code.google.com/p/rawinput *
-
 A Win32 RawInput_API wrapper using C++ modern design.
