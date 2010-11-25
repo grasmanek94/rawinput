@@ -16,7 +16,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 }}}
 
-All RawInput API data is sent to through WM_INPUT messages.
+All RawInput_API data is sent to through WM_INPUT messages.
 
 The user just returns RawInput::Update and the system deals with it.
 
