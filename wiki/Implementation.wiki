@@ -3,19 +3,12 @@
 
 = Introduction =
 
-Right now it's very simple, not much is needed, just construct an Input object, update on user's WndProc function, then query for input.
+Right now it's very simple, not much is needed, just:
+  * Construct a RawInput::Input<RawInput::Unbuffered> object.
+  * Update on user's WndProc function.
+  * Query for input.
 
-If the included vcprojet file is used, it should generate a dll file for the user, otherwise this needs to be removed:
-
-{{{
-#pragma warning(disable:4251)
-
-#ifdef INPUT_EXPORTS
-#	define INPUT_API __declspec(dllexport)
-#else
-#	define INPUT_API __declspec(dllimport)
-#endif
-}}}
+The source has a demo project, all the info shown here is replicated there.
 
 Please take notice that this info is likely to change at any time.
 
@@ -30,39 +23,35 @@ Then simply:
 {{{
 input = new Input(<handle to window>);
 }}}
-*Notes*: Right now <handle to window> is defaulted to null, this is likely to be requiered in the furure, so pass it nonetheless.
-
-An Init() method could easly be implemented if proved usefull.
 
 ----
-== Querying window messages ==
+== Update ==
 
 In the user's WndProc function add:
 {{{
 case WM_INPUT:
-    input->Update(lParam);
-    return ::DefWindowProc(hWnd, message, wParam, lParam);
+    return input->Update(hWnd, message, wParam, lParam);
 }}}
 
 ----
-== Querying for user input ==
+== Querying ==
 
 User has the following functions for basic querying:
 
 Keyboard:
 {{{
-bool KeyUp(const unsigned short & button) const;
-bool KeyDown(const unsigned short & button) const;
-bool KeyHeld(const unsigned short & button) const;
+bool RawInput::KeyUp(const unsigned short & button) const;
+bool RawInput::KeyDown(const unsigned short & button) const;
+bool RawInput::KeyHeld(const unsigned short & button) const;
 }}}
 *Notes*: see [http://code.google.com/p/rawinput/issues/detail?id=1].
 
 Mouse:
 {{{
-bool MouseEvent(const unsigned short & button) const;
-void MousePos(long & x, long & y) const;
+bool RawInput::MouseEvent(const unsigned short & button) const;
+void RawInput::MousePos(long & x, long & y) const;
 }}}
-*Notes*: MousePos(x, y) returns mouse's last position in it's arguments.
+*Notes*: RawInput::MousePos(x, y) returns mouse's last position in it's arguments.
 
 Joystick:
 {{{
