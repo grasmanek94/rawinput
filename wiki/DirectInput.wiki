@@ -1,3 +1,3 @@
-#summary MSDN info about DirectInput
+#summary The DirectInput API is used to process data from a joystick, or other game controller.
 
-* http://msdn.microsoft.com/en-us/library/bb219802%28VS.85%29.aspx *
+* http://msdn.microsoft.com/en-us/library/ee416842(v=VS.85).aspx *
