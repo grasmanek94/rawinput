@@ -1,3 +1,5 @@
-#summary MS info about RawInput
+#summary This project
 
-* http://msdn.microsoft.com/en-us/library/ms645543%28VS.85%29.aspx *
+* http://code.google.com/p/rawinput *
+
+A Win32 RawInput API wrapper using C++ modern design.
