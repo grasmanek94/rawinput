@@ -2,4 +2,4 @@
 
 * http://code.google.com/p/rawinput *
 
-A Win32 RawInput API wrapper using C++ modern design.
+A Win32 RawInput_API wrapper using C++ modern design.
