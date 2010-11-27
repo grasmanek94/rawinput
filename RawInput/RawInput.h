@@ -1,19 +1,18 @@
-#pragma once
+#ifndef RawInput_h__
+#define RawInput_h__
 
 #include "RawInputAPI.h"
 
-#include "RawDevice.h"
+#include "RawMouse.h"
+#include "RawKeyboard.h"
+#include "RawHID.h"
 
 #include <exception>
-
+#include <algorithm>
 #include <map>
-
 #include <vector>
-
 #include <memory>
-
 #include <string>
-
 #include <sstream>
 
 #ifndef NDEBUG
@@ -22,14 +21,14 @@
 
 namespace RawInput
 {
-	class Input_Exception : public std::exception {
-		Input_Exception operator=(const Input_Exception &);
+	class RawInputException : public std::exception {
+		RawInputException operator=(const RawInputException &);
 	public:
-		const HRESULT hresult_;
+		const HRESULT m_hresult;
 
-		explicit Input_Exception(const std::string msg, HRESULT hr = HRESULT())
+		explicit RawInputException(const std::string msg, HRESULT hr = ::GetLastError())
 			: exception(msg.data()),
-			hresult_(hr)
+			m_hresult(hr)
 		{
 		}
 
@@ -37,17 +36,17 @@ namespace RawInput
 		{
 			std::wstringstream ss;
 			
-			ss << this->what() << TEXT(" has thrown an exception.\n\nCode: ") << hresult_;
+			ss << this->what() << TEXT(" has thrown an exception.\n\nCode: ") << m_hresult;
 
 			::MessageBox(
 				nullptr,
-				ss.str().data(),
+				ss.str().c_str(),
 				TEXT("RawInput"),
 				MB_ICONERROR);
 		}
 	};
 
-	class UnBuffered {
+	class Unbuffered {
 		protected:
 		/*
 		 * UnBuffered Update() implementation.
@@ -57,12 +56,12 @@ namespace RawInput
 			std::size_t pcbSize(sizeof(RAWINPUT));
 
 			// Returns -1 on fail. Returns input data in rData.
-			if(::GetRawInputData(
+			if (::GetRawInputData(
 				hrawinput,
 				RID_INPUT,
 				rData,
 				&pcbSize,
-				sizeof(RAWINPUTHEADER)) == -1) throw Input_Exception("GetRawInputData()", GetLastError());
+				sizeof(RAWINPUTHEADER)) == -1) throw RawInputException("GetRawInputData()");
 		}
 	};
 
@@ -84,7 +83,7 @@ namespace RawInput
 				&pcbSize,
 				sizeof(RAWINPUTHEADER)));
 
-			if (rBuff == -1) throw Input_Exception("GetRawInputBuffer()", GetLastError());
+			if (rBuff == -1) throw RawInputException("GetRawInputBuffer()");
 
 			std::vector<RAWINPUT> pData(pcbSize / sizeof(RAWINPUT));
 
@@ -95,7 +94,7 @@ namespace RawInput
 				&pcbSize,
 				sizeof(RAWINPUTHEADER));
 
-			if (rBuff == -1) throw Input_Exception("GetRawInputBuffer()", GetLastError());
+			if (rBuff == -1) throw RawInputException("GetRawInputBuffer()");
 
 			if (rBuff == 0) return;
 
@@ -117,13 +116,13 @@ namespace RawInput
 
 	template
 	<
-		class UpdatePolicy = UnBuffered
+		class UpdatePolicy
 	>
 	class Input : public UpdatePolicy
 	{
-		typedef std::tr1::shared_ptr<RawDevice> PtrRawdev;
+		typedef std::shared_ptr<RawDevice> RawdevPtr;
 
-		typedef std::map<HANDLE, PtrRawdev> RawdevMap;
+		typedef std::map<HANDLE, RawdevPtr> RawdevMap;
 
 		typedef std::vector<RAWINPUTDEVICE> DeviceVec;
 
@@ -140,6 +139,7 @@ namespace RawInput
 			HID_DEVICE_SYSTEM_GAME		= 0x04
 		};
 
+
 		Input(const Input &);
 
 		Input & operator=(const Input &);
@@ -148,309 +148,144 @@ namespace RawInput
 		 * @param1: handle to the target window. If NULL it follows the keyboard focus.
 		 * @param2, 3, 4: flags for mouse, keyboard and hid, respectively.
 		 */
-		explicit Input(const HWND, const DWORD mouse_flags = 0, const DWORD keyb_flags = 0, const DWORD hid_flags = 0);
+		explicit Input(const HWND hwnd, const DWORD mouse_flags = 0, const DWORD keyb_flags = 0, const DWORD hid_flags = 0)
+			: m_ri_registered_devices(),
+			m_ri_devs(),
+			m_sys_mouse(),
+			m_sys_keyboard(),
+			m_sys_hid()
+		{
+			try {
+				const USHORT usage_table[] = {
+					HID_DEVICE_SYSTEM_MOUSE,	// RIM_TYPEMOUSE == [0]
+					HID_DEVICE_SYSTEM_KEYBOARD,	// RIM_TYPEKEYBOARD == [1]
+					HID_DEVICE_SYSTEM_GAME,		// RIM_TYPEHID == [2]
+				};
 
-		~Input(void);
+				const DWORD flags_table[] = {
+					mouse_flags,				// Flags for mouse
+					keyb_flags,					// Flags for keyboard
+					hid_flags,					// Flags for HID
+				};
+
+				auto & ri_sys_dev = Input::EnumSystemDevices();
+
+				std::for_each (
+					ri_sys_dev.begin(),
+					ri_sys_dev.end(),
+					[&](RAWINPUTDEVICELIST & ridl)
+					{
+#ifndef NDEBUG
+						Str & device_name = this->GetDeviceName(ridl.hDevice);
+
+						std::wcout << device_name << TEXT("\n\n");
+#endif
+
+						RID_DEVICE_INFO & dev_info = this->GetDeviceInfo(ridl.hDevice);
+
+						RAWINPUTDEVICE ri_dev = {
+							HID_USAGE_PAGE,
+							usage_table[dev_info.dwType],
+							flags_table[dev_info.dwType],
+							hwnd
+						};
+
+						m_ri_registered_devices.push_back(ri_dev);
+
+						m_ri_devs[ridl.hDevice] = this->CreateDevice(dev_info.dwType);
+					}
+				);
+
+				if (!::RegisterRawInputDevices(
+					&m_ri_registered_devices[0],
+					m_ri_registered_devices.size(),
+					sizeof(RAWINPUTDEVICE))) throw RawInputException("RegisterRawInputDevices()");
+			}
+			catch (RawInputException & ex) {
+				ex.Show();
+			}
+		}
+
+
+		~Input(void)
+		{
+			std::for_each (
+				m_ri_registered_devices.begin(),
+				m_ri_registered_devices.end(),
+				[&](RAWINPUTDEVICE & dev)
+				{
+					dev.dwFlags = RIDEV_REMOVE;
+
+					dev.hwndTarget = nullptr;
+				}
+			);
+
+			::RegisterRawInputDevices(
+				&m_ri_registered_devices[0],
+				m_ri_registered_devices.size(),
+				sizeof(RAWINPUTDEVICE));
+		}
+
 
 		/*
 		 * Update()s devices state. Call on WM_INPUT.
 		 */
-		LRESULT Update(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+		LRESULT Update(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+		{
+			RAWINPUT rData;
+
+			this->UpdatePolicy::Update(reinterpret_cast<HRAWINPUT>(lParam), &rData);
+
+			auto device = m_ri_devs.find(rData.header.hDevice); // look for device
+
+			if (device != m_ri_devs.end()) {	// if device found
+				device->second->Read(rData);	// read data
+			}
+			else {								// else add new device and read data
+				auto newdev = this->CreateDevice(rData.header.dwType);
+
+				m_ri_devs[rData.header.hDevice] = newdev;
+
+				newdev->Read(rData);
+			}
+
+			switch (rData.header.dwType) {
+				case RIM_TYPEMOUSE:
+					if (device->second.get() != m_sys_mouse) {
+						m_sys_mouse = static_cast<RawMouse *>(&*device->second);
+					}
+					break;
+				case RIM_TYPEKEYBOARD:
+					if (device->second.get() != m_sys_keyboard) {
+						m_sys_keyboard = static_cast<RawKeyboard *>(&*device->second);
+					}
+					break;
+				case RIM_TYPEHID:
+				default:
+					;
+			}
+
+			switch (GET_RAWINPUT_CODE_WPARAM(wParam)) {
+				case RIM_INPUT: // input ocurred when the window was in the foreground.
+				case RIM_INPUTSINK: // input ocurred when the window was not in the foreground.
+					return ::DefWindowProc(hwnd, message, wParam, lParam);
+				default:
+					return 0;
+			}
+		}
+
 
 		/*
 		 * Call Change() to handle WM_INPUT_DEVICE_CHANGE messages
 		 */
-		LRESULT Change(WPARAM, LPARAM);
-
-		/*
-		 * Clean()s the state for all devices.
-		 */
-		void Clean(void);
-
-		/*
-		 * KeyUp() returns true on key release.
-		 *
-		 * @param1: one of Keyboard::keyboard_vkeys enum or VK code.
-		 */
-		bool KeyUp(unsigned short) const;
-
-		/*
-		 * KeyDown() returns true on key press.
-		 *
-		 * @param1: one of Keyboard::keyboard_vkeys enum or VK code.
-		 */
-		bool KeyDown(unsigned short) const;
-
-		/*
-		 * KeyHeld() returns true while key is pressed.
-		 *
-		 * @param1: one of Keyboard::keyboard_vkeys enum or VK code.
-		 */
-		bool KeyHeld(unsigned short) const;
-
-		/**
-		 * !!! Only works when connected through PS/2 port !!!
-		 *
-		 * MouseButtonHeld() returns true while button is pressed.
-		 *
-		 * @param1: any combination of Mouse::mouse_rawstate enum.
-		 */
-		bool MouseButtonHeld(unsigned long) const;
-
-		/*
-		 * MouseEvent() returns true on button event.
-		 *
-		 * @param1: one of Mouse::mouse_flags enum.
-		 */
-		bool MouseButton(unsigned short) const;
-
-		/*
-		 * MousePos() returns mouse's x/y position.
-		 *
-		 * @param1: returns mouse last position X.
-		 * @param2: returns mouse last position Y.
-		 */
-		void MousePos(long *, long *) const;
-	private:
-		/*
-		 * GetSystemDevices() returns a vector with all the devices
-		 * connected to the system at the time of call.
-		 */
-		std::vector<RAWINPUTDEVICELIST> GetSystemDevices(void) const;
-
-		/*
-		 * GetDeviceInfo() returns a RID_DEVICE_INFO filled with a device.
-		 *
-		 * @param1: HANDLE to a device
-		 */
-		RID_DEVICE_INFO GetDeviceInfo(HANDLE) const;
-
-		/*
-		 * GetDeviceName() returns device name.
-		 *
-		 * @param1: HANDLE to a device
-		 */
-		Str GetDeviceName(HANDLE) const;
-
-		/*
-		 * CreateDevice() returns a pointer to a new device.
-		 *
-		 * @param1: DWORD corresponding to a device type
-		 */
-		PtrRawdev CreateDevice(DWORD);
-
-		DeviceVec	ri_registered_devices_;
-
-		RawdevMap	ri_devs_;
-
-		RawMouse	* sys_mouse_;
-
-		RawKeyboard	* sys_keyboard_;
-
-		RawHID		* sys_hid_;
-	};
-
-	template<class UpdatePolicy>
-	Input<UpdatePolicy>::Input(const HWND hwnd, const DWORD mouse_flags, const DWORD keyb_flags, const DWORD hid_flags)
-		: ri_registered_devices_(),
-		ri_devs_(),
-		sys_mouse_(),
-		sys_keyboard_(),
-		sys_hid_()
-	{
-		try {
-			auto & ri_sys_dev(this->GetSystemDevices());
-
-			const USHORT usage_table[] = {
-				HID_DEVICE_SYSTEM_MOUSE,	// RIM_TYPEMOUSE == 0
-				HID_DEVICE_SYSTEM_KEYBOARD,	// RIM_TYPEKEYBOARD == 1
-				HID_DEVICE_SYSTEM_GAME,		// RIM_TYPEHID == 2
-			};
-
-			const DWORD flags_table[] = {
-				mouse_flags,				// Flags for mouse
-				keyb_flags,					// Flags for keyboard
-				hid_flags,					// Flags for HID
-			};
-
-			for (std::size_t i = 0; i < ri_sys_dev.size(); ++i) {
-				Str & device_name(this->GetDeviceName(ri_sys_dev[i].hDevice));
-
-				if (device_name.find(TEXT("RDP_")) == -1) { //Look for non-RDP devices
-					#ifndef NDEBUG
-					std::wcout << TEXT("Device[") << i << TEXT("]: ") << device_name << TEXT("\n\n");
-					#endif
-
-					RID_DEVICE_INFO & pData(this->GetDeviceInfo(ri_sys_dev[i].hDevice));
-					
-					RAWINPUTDEVICE ri_dev = {
-						HID_USAGE_PAGE,
-						usage_table[pData.dwType],
-						flags_table[pData.dwType],
-						hwnd
-					};
-
-					ri_registered_devices_.push_back(ri_dev);
-
-					ri_devs_[ri_sys_dev[i].hDevice] = this->CreateDevice(pData.dwType);
-				}
-			}
-
-			if (!::RegisterRawInputDevices(
-				&ri_registered_devices_[0],
-				ri_registered_devices_.size(),
-				sizeof(RAWINPUTDEVICE))) throw Input_Exception("RegisterRawInputDevices()", GetLastError());
-		}
-		catch (Input_Exception & e) {
-			e.Show();
-		}
-	}
-
-	template<class UpdatePolicy>
-	Input<UpdatePolicy>::~Input(void)
-	{
-		for (auto i = ri_registered_devices_.begin(), end = ri_registered_devices_.end()
-			; i != end
-			; ++i)
+		LRESULT Change(WPARAM wParam, LPARAM lParam)
 		{
-			i->dwFlags = RIDEV_REMOVE;
-			i->hwndTarget = nullptr;
-		}
-
-		::RegisterRawInputDevices(
-			&ri_registered_devices_[0],
-			ri_registered_devices_.size(),
-			sizeof(RAWINPUTDEVICE));
-	}
-
-	template<class UpdatePolicy>
-	std::vector<RAWINPUTDEVICELIST> Input<UpdatePolicy>::GetSystemDevices(void) const
-	{
-		std::size_t ri_system_count;
-
-		//Returns the number of RAWINPUTDEVICELIST structures that can be
-		//contained in the buffer to which pRawInputDeviceList points
-		//If this value is less than the number of devices attached to the
-		//system, the function returns the actual number of devices in this
-		//variable and fails with ERROR_INSUFFICIENT_BUFFER.
-		if (::GetRawInputDeviceList(
-			nullptr,
-			&ri_system_count,
-			sizeof(RAWINPUTDEVICELIST)) < 0) throw Input_Exception("GetRawInputDeviceList()", ::GetLastError());
-
-		std::vector<RAWINPUTDEVICELIST> ri_sys_dev(ri_system_count);
-
-		//Populates ri_sys_dev with the number of devices attached to the system.
-		if (::GetRawInputDeviceList(
-			&ri_sys_dev[0],
-			&ri_system_count,
-			sizeof(RAWINPUTDEVICELIST)) < 0) throw Input_Exception("GetRawInputDeviceList()", ::GetLastError());
-
-		return ri_sys_dev;
-	}
-
-	template <class UpdatePolicy>
-	RID_DEVICE_INFO Input<UpdatePolicy>::GetDeviceInfo(HANDLE hDevice) const
-	{
-		RID_DEVICE_INFO pData;
-
-		// If uiCommand is RIDI_DEVICEINFO, set RID_DEVICE_INFO.cbSize to
-		// sizeof(RID_DEVICE_INFO) before calling GetRawInputDeviceInfo.
-		pData.cbSize = sizeof(RID_DEVICE_INFO);
-
-		std::size_t pcbSize = sizeof(RID_DEVICE_INFO);
-
-		// Returns bytes copied to pData, gets input data in pData.
-		if (::GetRawInputDeviceInfo(
-			hDevice,
-			RIDI_DEVICEINFO,
-			&pData,
-			&pcbSize) < 0) throw Input_Exception("GetRawInputDeviceInfo(RIDI_DEVICEINFO)", ::GetLastError());
-
-		return pData;
-	}
-
-	template <class UpdatePolicy>
-	typename Input<UpdatePolicy>::Str Input<UpdatePolicy>::GetDeviceName(HANDLE hDevice) const
-	{
-		std::size_t pcbSize;
-
-		//If successful, this function returns a non-negative number indicating the number of character copied to pData.
-		//If pData is NULL, the function returns a value of zero.
-		//If pData is not large enough for the data, the function returns -1. 
-		if (::GetRawInputDeviceInfo(
-			hDevice,
-			RIDI_DEVICENAME,
-			nullptr,
-			&pcbSize) < 0) throw Input_Exception("GetRawInputDeviceInfo(RIDI_DEVICENAME)", ::GetLastError());
-
-		std::vector<wchar_t> pData(pcbSize);
-
-		if (::GetRawInputDeviceInfo(
-			hDevice,
-			RIDI_DEVICENAME,
-			&pData[0],
-			&pcbSize) < 0) throw Input_Exception("GetRawInputDeviceInfo(RIDI_DEVICENAME)", ::GetLastError());
-
-		return &pData[0]; // constructs string from vector
-	}
-
-	template <class UpdatePolicy>
-	typename Input<UpdatePolicy>::PtrRawdev Input<UpdatePolicy>::CreateDevice(DWORD type)
-	{
-		switch (type) {
-			case RIM_TYPEMOUSE:
-				return PtrRawdev(sys_mouse_ == nullptr	// if system device is not set
-					? sys_mouse_ = new RawMouse			// use the new device as the system device and return it
-					: new RawMouse);					// else just create a new device.
-				break;
-			case RIM_TYPEKEYBOARD:
-				return PtrRawdev(sys_keyboard_ == nullptr
-					? sys_keyboard_ = new RawKeyboard
-					: new RawKeyboard);
-				break;
-			case RIM_TYPEHID:
-				return PtrRawdev(sys_hid_ == nullptr
-					? sys_hid_ = new RawHID
-					: new RawHID);
-				break;
-			default:
-				throw Input_Exception("CreateDevice() recieved a bad type.");
-		}
-	}
-
-	template <class UpdatePolicy>
-	LRESULT Input<UpdatePolicy>::Update(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
-	{
-		RAWINPUT rData;
-
-		this->UpdatePolicy::Update(reinterpret_cast<HRAWINPUT>(lParam), &rData);
-
-		auto it = ri_devs_.find(rData.header.hDevice); // look for device
-
-		if (it != ri_devs_.end()) {		// if device found
-			it->second->Read(rData);	// read data
-		}
-		else {							// else add new device and read data
-			auto newdev = ri_devs_[rData.header.hDevice] = this->CreateDevice(rData.header.dwType);
-
-			newdev->Read(rData);
-		}
-
-		return GET_RAWINPUT_CODE_WPARAM(wParam) == RIM_INPUT
-			? ::DefWindowProc(hwnd, message, wParam, lParam)
-			: 0;
-	}
-
-	template <class UpdatePolicy>
-	LRESULT Input<UpdatePolicy>::Change(WPARAM wParam, LPARAM lParam)
-	{
-		switch (GET_RAWINPUT_CODE_WPARAM(wParam)) {
+			switch (GET_RAWINPUT_CODE_WPARAM(wParam)) {
 			case GIDC_ARRIVAL:
 				// Handle arrival
 
 				#ifndef NDEBUG
-				std::wcout << TEXT("RawDevice arrival: ") << this->GetDeviceName(reinterpret_cast<HANDLE>(lParam));
+				std::wcout << TEXT("RawDevice arrival detected: ") << this->GetDeviceName(reinterpret_cast<HANDLE>(lParam));
 				#endif
 
 				break;
@@ -462,52 +297,160 @@ namespace RawInput
 				#endif
 
 				break;
+			}
+
+			return 0;
 		}
 
-		return 0;
-	}
 
-	template <class UpdatePolicy>
-	void Input<UpdatePolicy>::Clean(void)
-	{
-		for (auto it = ri_devs_.begin(); it != ri_devs_.end(); ++it) {
-			it->second.get()->Clean();
+		/*
+		 * Clean()s the state for all devices.
+		 */
+		void Clean(void)
+		{
+			std::for_each(
+				m_ri_devs.begin(),
+				m_ri_devs.end(),
+				[&](RawdevMap::iterator::value_type & dev)
+				{
+					dev.second->Clean();
+				}
+			);
 		}
-	}
 
-	template <class UpdatePolicy>
-	bool Input<UpdatePolicy>::KeyUp(unsigned short key) const
-	{
-		return sys_keyboard_->KeyUp(key);
-	}
 
-	template <class UpdatePolicy>
-	bool Input<UpdatePolicy>::KeyDown(unsigned short key) const
-	{
-		return sys_keyboard_->KeyDown(key);
-	}
+		bool KeyUp(unsigned short key) const { return m_sys_keyboard->KeyUp(key); }
 
-	template <class UpdatePolicy>
-	bool Input<UpdatePolicy>::KeyHeld(unsigned short key) const
-	{
-		return sys_keyboard_->KeyHeld(key);
-	}
+		bool KeyDown(unsigned short key) const { return m_sys_keyboard->KeyDown(key); }
 
-	template <class UpdatePolicy>
-	bool Input<UpdatePolicy>::MouseButtonHeld(unsigned long button) const
-	{
-		return sys_mouse_->ButtonHeld(button);
-	}
+		bool KeyHeld(unsigned short key) const { return m_sys_keyboard->KeyHeld(key); }
 
-	template <class UpdatePolicy>
-	bool Input<UpdatePolicy>::MouseButton(unsigned short flag) const
-	{
-		return sys_mouse_->Button(flag);
-	}
+		bool MouseButton(unsigned short button) const { return m_sys_mouse->Button(button); }
 
-	template <class UpdatePolicy>
-	void Input<UpdatePolicy>::MousePos(long * x, long * y) const
-	{
-		sys_mouse_->GetPosXY(x, y);
-	}
+		void MousePos(long * x, long * y) const { m_sys_mouse->GetPosXY(x, y); }
+	private:
+		/*
+		 * EnumSystemDevices() returns a vector with all the devices
+		 * connected to the system at the time of call.
+		 */
+		static std::vector<RAWINPUTDEVICELIST> EnumSystemDevices(void)
+		{
+			std::size_t ri_system_count;
+
+			//Returns the number of RAWINPUTDEVICELIST structures that can be
+			//contained in the buffer to which pRawInputDeviceList points
+			//If this value is less than the number of devices attached to the
+			//system, the function returns the actual number of devices in this
+			//variable and fails with ERROR_INSUFFICIENT_BUFFER.
+			if (::GetRawInputDeviceList(
+				nullptr,
+				&ri_system_count,
+				sizeof(RAWINPUTDEVICELIST)) < 0) throw RawInputException("GetRawInputDeviceList()");
+
+			std::vector<RAWINPUTDEVICELIST> ri_sys_dev(ri_system_count);
+
+			//Populates ri_sys_dev with the number of devices attached to the system.
+			if (::GetRawInputDeviceList(
+				&ri_sys_dev[0],
+				&ri_system_count,
+				sizeof(RAWINPUTDEVICELIST)) < 0) throw RawInputException("GetRawInputDeviceList()");
+
+			return ri_sys_dev;
+		}
+
+
+		/*
+		 * GetDeviceInfo() returns a RID_DEVICE_INFO filled with a device.
+		 *
+		 * @param1: HANDLE to a device
+		 */
+		RID_DEVICE_INFO GetDeviceInfo(HANDLE hDevice) const
+		{
+			RID_DEVICE_INFO pData;
+
+			// If uiCommand is RIDI_DEVICEINFO, set RID_DEVICE_INFO.cbSize to
+			// sizeof(RID_DEVICE_INFO) before calling GetRawInputDeviceInfo.
+			pData.cbSize = sizeof(RID_DEVICE_INFO);
+
+			std::size_t pcbSize = sizeof(RID_DEVICE_INFO);
+
+			// Returns bytes copied to pData, gets input data in pData.
+			if (::GetRawInputDeviceInfo(
+				hDevice,
+				RIDI_DEVICEINFO,
+				&pData,
+				&pcbSize) < 0) throw RawInputException("GetRawInputDeviceInfo(RIDI_DEVICEINFO)");
+
+			return pData;
+		}
+
+
+		/*
+		 * GetDeviceName() returns device name.
+		 *
+		 * @param1: HANDLE to a device
+		 */
+		Str GetDeviceName(HANDLE hDevice) const
+		{
+			std::size_t pcbSize;
+
+			//If successful, this function returns a non-negative number indicating the number of character copied to pData.
+			//If pData is NULL, the function returns a value of zero.
+			//If pData is not large enough for the data, the function returns -1. 
+			if (::GetRawInputDeviceInfo(
+				hDevice,
+				RIDI_DEVICENAME,
+				nullptr,
+				&pcbSize) < 0) throw RawInputException("GetRawInputDeviceInfo(RIDI_DEVICENAME)");
+
+			std::vector<Str::value_type> pData(pcbSize);
+
+			if (::GetRawInputDeviceInfo(
+				hDevice,
+				RIDI_DEVICENAME,
+				&pData[0],
+				&pcbSize) < 0) throw RawInputException("GetRawInputDeviceInfo(RIDI_DEVICENAME)");
+
+			return &pData[0]; // constructs Str from vector
+		}
+
+
+		/*
+		 * CreateDevice() returns a pointer to a new device.
+		 *
+		 * @param1: DWORD corresponding to a device type
+		 */
+		RawdevPtr CreateDevice(DWORD type)
+		{
+			switch (type) {
+			case RIM_TYPEMOUSE:
+				return RawdevPtr(m_sys_mouse == nullptr	// if system device is not set
+					? m_sys_mouse = new RawMouse		// use the new device as the system device and return it
+					: new RawMouse);					// else just create a new device.
+			case RIM_TYPEKEYBOARD:
+				return RawdevPtr(m_sys_keyboard == nullptr
+					? m_sys_keyboard = new RawKeyboard
+					: new RawKeyboard);
+			case RIM_TYPEHID:
+				return RawdevPtr(m_sys_hid == nullptr
+					? m_sys_hid = new RawHID
+					: new RawHID);
+			default:
+				throw RawInputException("CreateDevice() recieved a bad type.");
+			}
+		}
+
+
+		DeviceVec	m_ri_registered_devices;
+
+		RawdevMap	m_ri_devs;
+
+		RawMouse	* m_sys_mouse;
+
+		RawKeyboard	* m_sys_keyboard;
+
+		RawHID		* m_sys_hid;
+	};
 }
+
+#endif // RawInput_h__
