@@ -20,6 +20,7 @@
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -73,12 +74,19 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="RawDevice.h" />
+    <ClInclude Include="RawHID.h" />
     <ClInclude Include="RawInputAPI.h" />
     <ClInclude Include="RawInput.h" />
+    <ClInclude Include="RawInputFwd.h" />
+    <ClInclude Include="RawKeyboard.h" />
+    <ClInclude Include="RawMouse.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RawDevice.cpp" />
+    <ClCompile Include="RawHID.cpp" />
+    <ClCompile Include="RawKeyboard.cpp" />
+    <ClCompile Include="RawMouse.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>

@@ -1,4 +1,4 @@
-#include "RawDevice.h"
+/*#include "RawDevice.h"
 
 #ifndef NDEBUG
 #include <iostream>
@@ -8,10 +8,6 @@ using std::wcout;
 
 namespace RawInput
 {
-	RawDevice::~RawDevice(void)
-	{
-	}
-
 	RawMouse::RawMouse(void)
 		: ri_data_()
 	{
@@ -21,11 +17,11 @@ namespace RawInput
 	{
 	}
 
-	const RAWINPUT & RawMouse::Read(const RAWINPUT & ri)
+	void RawMouse::Read(const RAWINPUT & ri)
 	{
 		ri_data_ = ri.data.mouse;
 
-		#ifndef NDEBUG
+#ifndef NDEBUG
 		wcout << ri_data_.usFlags
 //			<< TEXT('\t') << ri_data_.ulButtons
 			<< TEXT('\t') << ri_data_.usButtonFlags
@@ -35,9 +31,7 @@ namespace RawInput
 			<< TEXT('\t') << ri_data_.lLastY
 //			<< TEXT('\t') << ri_data_.ulExtraInformation
 			<< TEXT('\n');
-		#endif
-
-		return ri;
+#endif
 	}
 
 	void RawMouse::Clean(void)
@@ -52,12 +46,7 @@ namespace RawInput
 
 	bool RawMouse::Button(unsigned short button) const
 	{
-		return ri_data_.usButtonFlags & button;
-	}
-
-	bool RawMouse::ButtonHeld(unsigned short button) const
-	{
-		return ri_data_.ulRawButtons & button;
+		return (ri_data_.usButtonFlags & button) != 0;
 	}
 
 	void RawMouse::GetPosXY(long * x, long * y) const
@@ -69,7 +58,9 @@ namespace RawInput
 
 	short RawMouse::GetWheelDelta(void) const
 	{
-		return ri_data_.usButtonData;
+		return ri_data_.usButtonFlags & RI_MOUSE_WHEEL
+			? ri_data_.usButtonData
+			: 0;
 	}
 
 	RawKeyboard::RawKeyboard(void)
@@ -81,20 +72,15 @@ namespace RawInput
 	{
 	}
 
-	const RAWINPUT & RawKeyboard::Read(const RAWINPUT & ri)
+	void RawKeyboard::Read(const RAWINPUT & ri)
 	{
 		ri_data_ = ri.data.keyboard;
 
-		#ifndef NDEBUG
-		wcout << ri_data_.MakeCode
-			<< TEXT('\t') << ri_data_.Flags
-			<< TEXT('\t') << ri_data_.VKey
-			<< TEXT('\t') << ri_data_.Message
-//			<< TEXT('\t') << ri_data_.ExtraInformation
-			<< TEXT('\n');
-		#endif
-			
-		return ri;
+#ifndef NDEBUG
+		wcout << (ri_data_.Flags & RI_KEY_BREAK ? TEXT("break: ") : TEXT("make: "))
+			<< ri_data_.VKey
+			<< TEXT("\n\n");
+#endif
 	}
 
 	void RawKeyboard::Clean(void)
@@ -114,7 +100,7 @@ namespace RawInput
 
 	bool RawKeyboard::KeyDown(unsigned short key) const
 	{
-		return ri_data_.VKey == key && ri_data_.Flags & RI_KEY_MAKE;
+		return ri_data_.VKey == key && !(ri_data_.Flags & RI_KEY_MAKE);
 	}
 
 	bool RawKeyboard::KeyHeld(unsigned short key) const
@@ -131,7 +117,7 @@ namespace RawInput
 	{
 	}
 
-	const RAWINPUT & RawHID::Read(const RAWINPUT & ri)
+	void RawHID::Read(const RAWINPUT & ri)
 	{
 		ri_data_ = ri.data.hid;
 
@@ -142,8 +128,6 @@ namespace RawInput
 
 		wcout << TEXT('\n');
 		#endif
-			
-		return ri;
 	}
 
 	void RawHID::Clean(void)
@@ -155,4 +139,4 @@ namespace RawInput
 	{
 		return ri_data_;
 	}
-}
+}*/

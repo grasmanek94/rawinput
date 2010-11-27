@@ -6,15 +6,15 @@ Project http://code.google.com/p/rawinput/
 
 #include "..\RawInput\RawInput.h"
 
-typedef RawInput::Input<RawInput::UnBuffered> InputSys;
+typedef RawInput::Input<RawInput::Unbuffered> InputSys;
 
 InputSys * input = nullptr; // It would be best to use a smart pointer.
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
-int main(int argc, char * argv[])
+int wmain(int argc, wchar_t * argv[])
 {
-	wchar_t * app_name = TEXT("RawInput Test");
+	wchar_t app_name[] = TEXT("RawInput Test");
 
 	WNDCLASSEX wndclassex = {
 		sizeof(WNDCLASSEX),						// cbSize
@@ -55,16 +55,13 @@ int main(int argc, char * argv[])
 		while (!::PeekMessage(&msg, hwnd, 0u, 0u, PM_NOREMOVE)) {
 			//Do work...
 
-			if (input->KeyUp(VK_END)) ::PostQuitMessage(0);
+			if (input->KeyUp(VK_END)) ::PostMessage(hwnd, WM_CLOSE, 0, 0);
 
-			if (input->KeyDown(Keyboard::VK_D)) ::PostQuitMessage(0);
+			if (input->KeyDown('Q')) ::PostMessage(hwnd, WM_CLOSE, 0, 0);
 
-			if (input->KeyUp(Keyboard::VK_U)) ::PostQuitMessage(0);
+			if (input->MouseButton(RawInput::RawMouse::BUTTON_1_DOWN)) ::PostMessage(hwnd, WM_CLOSE, 0, 0);
 
-			if (input->MouseButton(Mouse::BUTTON_1_DOWN)) ::PostQuitMessage(0);
-
-			// Clean input last...
-			input->Clean();
+			input->Clean(); // Clean input last...
 		}
 
 		while (::PeekMessage(&msg, nullptr, 0u, 0u, PM_REMOVE)) {
@@ -73,7 +70,7 @@ int main(int argc, char * argv[])
 		}
 	}
 
-	delete input;
+	delete input; // Remember to delete it
 
 	::UnregisterClass(app_name, nullptr);
 }
@@ -84,8 +81,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_DESTROY:
 		::PostQuitMessage(0);
 		return 0;;
-	case WM_INPUT_DEVICE_CHANGE: // Only for Windows Vista or greater. (WIP)
-		return input->Change(wParam, lParam);
+	case WM_INPUT_DEVICE_CHANGE:
+		return input->Change(wParam, lParam); // WIP - Only for Windows Vista or greater.
 	case WM_INPUT:
 		return input->Update(hWnd, message, wParam, lParam);
 	default:
