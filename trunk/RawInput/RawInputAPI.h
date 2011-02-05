@@ -6,10 +6,10 @@
 
 //////////////////////////////////////////////////////////////////////////
 
+#pragma once
+
 #ifndef RawInputAPI_h__
 #define RawInputAPI_h__
-
-#pragma once
 
 #include "stdafx.h"
 
