@@ -26,7 +26,7 @@ namespace RawInput
 	public:
 		const HRESULT m_hresult;
 
-		explicit RawInputException(const std::string msg, HRESULT hr = ::GetLastError())
+		explicit RawInputException(const std::string & msg, HRESULT hr = ::GetLastError())
 			: exception(msg.data()),
 			m_hresult(hr)
 		{
@@ -72,7 +72,7 @@ namespace RawInput
 		 *
 		 * Buffered Update() implementation.
 		 */
-		void Update(const HRAWINPUT hrawinput, RAWINPUT * rData)
+		void Update(const HRAWINPUT /*hrawinput*/, RAWINPUT * /*rData*/)
 		{
 			std::size_t pcbSize;
 
@@ -116,13 +116,13 @@ namespace RawInput
 
 	template
 	<
-		class UpdatePolicy
+		class BufferingPolicy
 	>
-	class Input : public UpdatePolicy
+	class Input : public BufferingPolicy
 	{
-		typedef std::shared_ptr<RawDevice> RawdevPtr;
+		typedef std::shared_ptr<RawDevice> RawDevicePtr;
 
-		typedef std::map<HANDLE, RawdevPtr> RawdevMap;
+		typedef std::map<HANDLE, RawDevicePtr> RawdevMap;
 
 		typedef std::vector<RAWINPUTDEVICE> DeviceVec;
 
@@ -138,7 +138,6 @@ namespace RawInput
 			HID_DEVICE_SYSTEM_KEYBOARD	= 0x06,
 			HID_DEVICE_SYSTEM_GAME		= 0x04
 		};
-
 
 		Input(const Input &);
 
@@ -168,7 +167,7 @@ namespace RawInput
 					hid_flags,					// Flags for HID
 				};
 
-				auto & ri_sys_dev = Input::EnumSystemDevices();
+				auto ri_sys_dev = EnumSystemDevices();
 
 				std::for_each (
 					ri_sys_dev.begin(),
@@ -176,7 +175,7 @@ namespace RawInput
 					[&](RAWINPUTDEVICELIST & ridl)
 					{
 #ifndef NDEBUG
-						Str & device_name = this->GetDeviceName(ridl.hDevice);
+						const Str & device_name = this->GetDeviceName(ridl.hDevice);
 
 						std::wcout << device_name << TEXT("\n\n");
 #endif
@@ -206,7 +205,6 @@ namespace RawInput
 			}
 		}
 
-
 		~Input(void)
 		{
 			std::for_each (
@@ -234,7 +232,7 @@ namespace RawInput
 		{
 			RAWINPUT rData;
 
-			this->UpdatePolicy::Update(reinterpret_cast<HRAWINPUT>(lParam), &rData);
+			this->BufferingPolicy::Update(reinterpret_cast<HRAWINPUT>(lParam), &rData);
 
 			auto device = m_ri_devs.find(rData.header.hDevice); // look for device
 
@@ -274,7 +272,6 @@ namespace RawInput
 			}
 		}
 
-
 		/*
 		 * Call Change() to handle WM_INPUT_DEVICE_CHANGE messages
 		 */
@@ -302,7 +299,6 @@ namespace RawInput
 			return 0;
 		}
 
-
 		/*
 		 * Clean()s the state for all devices.
 		 */
@@ -317,7 +313,6 @@ namespace RawInput
 				}
 			);
 		}
-
 
 		bool KeyUp(unsigned short key) const { return m_sys_keyboard->KeyUp(key); }
 
@@ -355,9 +350,8 @@ namespace RawInput
 				&ri_system_count,
 				sizeof(RAWINPUTDEVICELIST)) < 0) throw RawInputException("GetRawInputDeviceList()");
 
-			return ri_sys_dev;
+			return std::vector<RAWINPUTDEVICELIST>(ri_sys_dev);
 		}
-
 
 		/*
 		 * GetDeviceInfo() returns a RID_DEVICE_INFO filled with a device.
@@ -383,7 +377,6 @@ namespace RawInput
 
 			return pData;
 		}
-
 
 		/*
 		 * GetDeviceName() returns device name.
@@ -414,25 +407,24 @@ namespace RawInput
 			return &pData[0]; // constructs Str from vector
 		}
 
-
 		/*
 		 * CreateDevice() returns a pointer to a new device.
 		 *
 		 * @param1: DWORD corresponding to a device type
 		 */
-		RawdevPtr CreateDevice(DWORD type)
+		RawDevicePtr CreateDevice(DWORD type)
 		{
 			switch (type) {
 			case RIM_TYPEMOUSE:
-				return RawdevPtr(m_sys_mouse == nullptr	// if system device is not set
-					? m_sys_mouse = new RawMouse		// use the new device as the system device and return it
-					: new RawMouse);					// else just create a new device.
+				return RawDevicePtr(m_sys_mouse == nullptr	// if system device is not set
+					? m_sys_mouse = new RawMouse			// use the new device as the system device and return it
+					: new RawMouse);						// else just create a new device.
 			case RIM_TYPEKEYBOARD:
-				return RawdevPtr(m_sys_keyboard == nullptr
+				return RawDevicePtr(m_sys_keyboard == nullptr
 					? m_sys_keyboard = new RawKeyboard
 					: new RawKeyboard);
 			case RIM_TYPEHID:
-				return RawdevPtr(m_sys_hid == nullptr
+				return RawDevicePtr(m_sys_hid == nullptr
 					? m_sys_hid = new RawHID
 					: new RawHID);
 			default:
@@ -440,7 +432,7 @@ namespace RawInput
 			}
 		}
 
-
+	private:
 		DeviceVec	m_ri_registered_devices;
 
 		RawdevMap	m_ri_devs;

@@ -12,7 +12,7 @@ InputSys * input = nullptr; // It would be best to use a smart pointer.
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
-int wmain(int argc, wchar_t * argv[])
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR lpCmdLine, int nShowCmd)
 {
 	wchar_t app_name[] = TEXT("RawInput Test");
 
@@ -22,7 +22,7 @@ int wmain(int argc, wchar_t * argv[])
 		WndProc,								// lpfnWndProc
 		0,										// cbClsExtra
 		0,										// cbWndExtra
-		nullptr,								// hInstance
+		hInstance,								// hInstance
 		::LoadIcon(nullptr, IDI_APPLICATION),	// hIcon
 		::LoadCursor(nullptr, IDC_ARROW),		// hCursor
 		(HBRUSH)::GetStockObject(NULL_BRUSH),	// hbrBackground
@@ -44,7 +44,7 @@ int wmain(int argc, wchar_t * argv[])
 		480,
 		::GetDesktopWindow(),
 		nullptr,
-		nullptr,
+		hInstance,
 		nullptr);
 
 	input = new InputSys(hwnd/*, MOUSE_FLAGS, KEYB_FLAGS, HID_FLAGS*/);
@@ -52,9 +52,11 @@ int wmain(int argc, wchar_t * argv[])
 	MSG msg = {0};
 
 	while (msg.message != WM_QUIT) {
-		while (!::PeekMessage(&msg, hwnd, 0u, 0u, PM_NOREMOVE)) {
-			//Do work...
-
+		if (::PeekMessage(&msg, nullptr, 0u, 0u, PM_REMOVE)) {
+			::TranslateMessage(&msg);
+			::DispatchMessage(&msg);
+		}
+		else {	//Do work...
 			if (input->KeyUp(VK_END)) ::PostMessage(hwnd, WM_CLOSE, 0, 0);
 
 			if (input->KeyDown('Q')) ::PostMessage(hwnd, WM_CLOSE, 0, 0);
@@ -64,23 +66,31 @@ int wmain(int argc, wchar_t * argv[])
 			input->Clean(); // Clean input last...
 		}
 
-		while (::PeekMessage(&msg, nullptr, 0u, 0u, PM_REMOVE)) {
-			::TranslateMessage(&msg);
-			::DispatchMessage(&msg);
+		/*
+		if (mssg.message == WM_KEYDOWN) {
+			WPARAM param = mssg.wParam;
+			char c = MapVirtualKey(param,MAPVK_VK_TO_CHAR);
+			this->p->Input()->Keyboard()->Listeners()->OnKeyDown(c);
+		} else if (mssg.message == WM_KEYUP) {
+			WPARAM param = mssg.wParam;
+			char c = MapVirtualKey(param,MAPVK_VK_TO_CHAR);
+			this->p->Input()->Keyboard()->Listeners()->OnKeyUp(c);
 		}
+		*/
 	}
 
 	delete input; // Remember to delete it
 
-	::UnregisterClass(app_name, nullptr);
+	::UnregisterClass(app_name, hInstance);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message) {
+	case WM_CLOSE:
+		::DestroyWindow(hWnd); return 0;
 	case WM_DESTROY:
-		::PostQuitMessage(0);
-		return 0;;
+		::PostQuitMessage(0); return 0;
 	case WM_INPUT_DEVICE_CHANGE:
 		return input->Change(wParam, lParam); // WIP - Only for Windows Vista or greater.
 	case WM_INPUT:
