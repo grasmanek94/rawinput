@@ -1,3 +1,5 @@
+#include "RawInputAPI.h"
+
 #include "RawKeyboard.h"
 
 #ifndef NDEBUG
@@ -20,12 +22,6 @@ namespace RawInput
 	void RawKeyboard::Read(const RAWINPUT & ri)
 	{
 		m_data = ri.data.keyboard;
-
-#ifndef NDEBUG
-		wcout << (m_data.Flags & RI_KEY_BREAK ? TEXT("break: ") : TEXT("make: "))
-			<< m_data.VKey
-			<< TEXT("\n\n");
-#endif
 	}
 
 	void RawKeyboard::Clean(void)

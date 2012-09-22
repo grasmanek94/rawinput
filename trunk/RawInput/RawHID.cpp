@@ -1,3 +1,5 @@
+#include "RawInputAPI.h"
+
 #include "RawHID.h"
 
 #ifndef NDEBUG

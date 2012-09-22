@@ -1,7 +1,9 @@
 #ifndef RawMouse_h__
 #define RawMouse_h__
 
-#include "rawdevice.h"
+#include "RawInputAPI.h"
+
+#include "RawDevice.h"
 
 namespace RawInput
 {
@@ -55,6 +57,29 @@ namespace RawInput
 		 * GetWheelDelta() returns mouse's wheel movement.
 		 */
 		short GetWheelDelta(void) const;
+
+		typedef BaseEvent<RawMouse> Event;
+
+		template <class Callable>
+		class Connect : public Event
+		{
+		public:
+			Connect(Callable & callable)
+				: m_callable(callable) {
+			}
+
+			virtual void operator()(const Event::DeviceType & dev) override {
+				m_callable(dev);
+			}
+
+		private:
+			Connect(const Connect &);
+			Connect & operator=(const Connect &);
+
+		private:
+			const Callable & m_callable;
+		};
+
 	private:
 		RAWMOUSE m_data;
 	};

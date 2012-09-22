@@ -20,7 +20,7 @@
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
+    <PlatformToolset>v110</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -78,19 +78,26 @@
     <ClInclude Include="RawHID.h" />
     <ClInclude Include="RawInputAPI.h" />
     <ClInclude Include="RawInput.h" />
-    <ClInclude Include="RawInputFwd.h" />
     <ClInclude Include="RawKeyboard.h" />
     <ClInclude Include="RawMouse.h" />
-    <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="RawDevice.cpp" />
-    <ClCompile Include="RawHID.cpp" />
-    <ClCompile Include="RawKeyboard.cpp" />
-    <ClCompile Include="RawMouse.cpp" />
-    <ClCompile Include="stdafx.cpp">
+    <ClCompile Include="RawHID.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">RawInputAPI.h</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="RawKeyboard.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">RawInputAPI.h</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="RawMouse.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">RawInputAPI.h</PrecompiledHeaderFile>
+    </ClCompile>
+    <ClCompile Include="RawInputAPI.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">RawInputAPI.h</PrecompiledHeaderFile>
     </ClCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

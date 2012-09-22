@@ -1,7 +1,9 @@
 #ifndef RawHID_h__
 #define RawHID_h__
 
-#include "rawdevice.h"
+#include "RawInputAPI.h"
+
+#include "RawDevice.h"
 
 namespace RawInput
 {

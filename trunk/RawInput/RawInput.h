@@ -48,7 +48,7 @@ namespace RawInput
 
 	class Unbuffered {
 		protected:
-		/*
+		/**
 		 * UnBuffered Update() implementation.
 		 */
 		void Update(const HRAWINPUT hrawinput, RAWINPUT * rData)
@@ -67,7 +67,7 @@ namespace RawInput
 
 	class Buffered {
 		protected:
-		/*
+		/**
 		 * WIP
 		 *
 		 * Buffered Update() implementation.
@@ -76,12 +76,8 @@ namespace RawInput
 		{
 			std::size_t pcbSize;
 
-			// If pData is NULL,
-			// the minimum required buffer, in bytes, is returned in pcbSize.
-			std::size_t rBuff(::GetRawInputBuffer(
-				nullptr,
-				&pcbSize,
-				sizeof(RAWINPUTHEADER)));
+			// If pData is NULL, the minimum required buffer, in bytes, is returned in pcbSize.
+			std::size_t rBuff = ::GetRawInputBuffer(nullptr, &pcbSize, sizeof(RAWINPUTHEADER));
 
 			if (rBuff == -1) throw RawInputException("GetRawInputBuffer()");
 
@@ -120,9 +116,11 @@ namespace RawInput
 	>
 	class Input : public BufferingPolicy
 	{
+		typedef HANDLE DeviceHandle;
+
 		typedef std::shared_ptr<RawDevice> RawDevicePtr;
 
-		typedef std::map<HANDLE, RawDevicePtr> RawdevMap;
+		typedef std::map<DeviceHandle, RawDevicePtr> RawDevMap;
 
 		typedef std::vector<RAWINPUTDEVICE> DeviceVec;
 
@@ -143,71 +141,66 @@ namespace RawInput
 
 		Input & operator=(const Input &);
 	public:
-		/*
+		/**
 		 * @param1: handle to the target window. If NULL it follows the keyboard focus.
 		 * @param2, 3, 4: flags for mouse, keyboard and hid, respectively.
 		 */
 		explicit Input(const HWND hwnd, const DWORD mouse_flags = 0, const DWORD keyb_flags = 0, const DWORD hid_flags = 0)
-			: m_ri_registered_devices(),
+			: BufferingPolicy(),
+			m_ri_registered_devices(),
 			m_ri_devs(),
-			m_sys_mouse(),
-			m_sys_keyboard(),
-			m_sys_hid()
+			m_onMouse(),
+			m_onKeyboard()
 		{
-			try {
-				const USHORT usage_table[] = {
-					HID_DEVICE_SYSTEM_MOUSE,	// RIM_TYPEMOUSE == [0]
-					HID_DEVICE_SYSTEM_KEYBOARD,	// RIM_TYPEKEYBOARD == [1]
-					HID_DEVICE_SYSTEM_GAME,		// RIM_TYPEHID == [2]
-				};
+			const USHORT usage_table[] = {
+				HID_DEVICE_SYSTEM_MOUSE,	// RIM_TYPEMOUSE == [0]
+				HID_DEVICE_SYSTEM_KEYBOARD,	// RIM_TYPEKEYBOARD == [1]
+				HID_DEVICE_SYSTEM_GAME,		// RIM_TYPEHID == [2]
+			};
 
-				const DWORD flags_table[] = {
-					mouse_flags,				// Flags for mouse
-					keyb_flags,					// Flags for keyboard
-					hid_flags,					// Flags for HID
-				};
+			const DWORD flags_table[] = {
+				mouse_flags,				// Flags for mouse
+				keyb_flags,					// Flags for keyboard
+				hid_flags,					// Flags for HID
+			};
 
-				auto ri_sys_dev = EnumSystemDevices();
+			const auto & ri_sysDevices = EnumSystemDevices();
 
-				std::for_each (
-					ri_sys_dev.begin(),
-					ri_sys_dev.end(),
-					[&](RAWINPUTDEVICELIST & ridl)
-					{
+			std::for_each(
+				ri_sysDevices.cbegin(),
+				ri_sysDevices.cend(),
+				[&](const RAWINPUTDEVICELIST & ridl)
+				{
 #ifndef NDEBUG
-						const Str & device_name = this->GetDeviceName(ridl.hDevice);
+					const Str & device_name = this->GetDeviceName(ridl.hDevice);
 
-						std::wcout << device_name << TEXT("\n\n");
+					std::wcout << device_name << TEXT("\n\n");
 #endif
 
-						RID_DEVICE_INFO & dev_info = this->GetDeviceInfo(ridl.hDevice);
+					const RID_DEVICE_INFO & info = this->GetDeviceInfo(ridl.hDevice);
 
-						RAWINPUTDEVICE ri_dev = {
-							HID_USAGE_PAGE,
-							usage_table[dev_info.dwType],
-							flags_table[dev_info.dwType],
-							hwnd
-						};
+					RAWINPUTDEVICE ri_dev = {
+						HID_USAGE_PAGE,
+						usage_table[info.dwType],
+						flags_table[info.dwType],
+						hwnd
+					};
 
-						m_ri_registered_devices.push_back(ri_dev);
+					m_ri_registered_devices.push_back(ri_dev);
 
-						m_ri_devs[ridl.hDevice] = this->CreateDevice(dev_info.dwType);
-					}
-				);
+					m_ri_devs[ridl.hDevice] = this->CreateDevice(info.dwType);
+				}
+			);
 
-				if (!::RegisterRawInputDevices(
-					&m_ri_registered_devices[0],
-					m_ri_registered_devices.size(),
-					sizeof(RAWINPUTDEVICE))) throw RawInputException("RegisterRawInputDevices()");
-			}
-			catch (RawInputException & ex) {
-				ex.Show();
-			}
+			if (!::RegisterRawInputDevices(
+				&m_ri_registered_devices[0],
+				m_ri_registered_devices.size(),
+				sizeof(RAWINPUTDEVICE))) throw RawInputException("RegisterRawInputDevices()");
 		}
 
 		~Input(void)
 		{
-			std::for_each (
+			std::for_each(
 				m_ri_registered_devices.begin(),
 				m_ri_registered_devices.end(),
 				[&](RAWINPUTDEVICE & dev)
@@ -225,51 +218,60 @@ namespace RawInput
 		}
 
 
-		/*
+		/**
 		 * Update()s devices state. Call on WM_INPUT.
 		 */
 		LRESULT Update(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
-		{
+		try {
 			RAWINPUT rData;
-
 			this->BufferingPolicy::Update(reinterpret_cast<HRAWINPUT>(lParam), &rData);
 
-			auto device = m_ri_devs.find(rData.header.hDevice); // look for device
+			auto it = m_ri_devs.find(rData.header.hDevice);
 
-			if (device != m_ri_devs.end()) {	// if device found
-				device->second->Read(rData);	// read data
+			if (it == m_ri_devs.end()) {	// if device not found create and add new device, then read data.
+				auto newDev = this->CreateDevice(rData.header.dwType);
+
+				auto added = m_ri_devs.insert(std::make_pair(rData.header.hDevice, newDev));
+
+				if (added.second) it = added.first;
 			}
-			else {								// else add new device and read data
-				auto newdev = this->CreateDevice(rData.header.dwType);
 
-				m_ri_devs[rData.header.hDevice] = newdev;
+			auto device = it->second;
 
-				newdev->Read(rData);
-			}
+			device->Read(rData);
 
 			switch (rData.header.dwType) {
-				case RIM_TYPEMOUSE:
-					if (device->second.get() != m_sys_mouse) {
-						m_sys_mouse = static_cast<RawMouse *>(&*device->second);
-					}
-					break;
-				case RIM_TYPEKEYBOARD:
-					if (device->second.get() != m_sys_keyboard) {
-						m_sys_keyboard = static_cast<RawKeyboard *>(&*device->second);
-					}
-					break;
-				case RIM_TYPEHID:
-				default:
-					;
+			case RIM_TYPEMOUSE:
+				{
+				const auto & mouse = static_cast<RawMouse &>(*device.get());
+
+				for (auto & event : m_onMouse) {
+					(*event)(mouse);
+				}
+
+				break;
+				}
+
+			case RIM_TYPEKEYBOARD:
+				{
+				const auto & keyboard = static_cast<RawKeyboard &>(*device.get());
+
+				for (auto & event : m_onKeyboard) {
+					(*event)(keyboard);
+				}
+
+				break;
+				}
+
+			case RIM_TYPEHID:
+			default:
+				; // not supported.
 			}
 
-			switch (GET_RAWINPUT_CODE_WPARAM(wParam)) {
-				case RIM_INPUT: // input ocurred when the window was in the foreground.
-				case RIM_INPUTSINK: // input ocurred when the window was not in the foreground.
-					return ::DefWindowProc(hwnd, message, wParam, lParam);
-				default:
-					return 0;
-			}
+			return 0;
+		}
+		catch (...) {
+			return ::DefWindowProc(hwnd, message, wParam, lParam);
 		}
 
 		/*
@@ -286,6 +288,7 @@ namespace RawInput
 				#endif
 
 				break;
+
 			case GIDC_REMOVAL:
 				// Handle removal
 
@@ -299,32 +302,25 @@ namespace RawInput
 			return 0;
 		}
 
-		/*
-		 * Clean()s the state for all devices.
-		 */
-		void Clean(void)
+	public:
+		template <class Callable>
+		Input & onMouseEvent(Callable && callable)
 		{
-			std::for_each(
-				m_ri_devs.begin(),
-				m_ri_devs.end(),
-				[&](RawdevMap::iterator::value_type & dev)
-				{
-					dev.second->Clean();
-				}
-			);
+			m_onMouse.push_back(RawMouse::Event::Ptr(new RawMouse::Connect<Callable>(callable)));
+
+			return *this;
 		}
 
-		bool KeyUp(unsigned short key) const { return m_sys_keyboard->KeyUp(key); }
+		template <class Callable>
+		Input & onKeyboardEvent(Callable && callable)
+		{
+			m_onKeyboard.push_back(RawKeyboard::Event::Ptr(new RawKeyboard::Connect<Callable>(callable)));
 
-		bool KeyDown(unsigned short key) const { return m_sys_keyboard->KeyDown(key); }
+			return *this;
+		}
 
-		bool KeyHeld(unsigned short key) const { return m_sys_keyboard->KeyHeld(key); }
-
-		bool MouseButton(unsigned short button) const { return m_sys_mouse->Button(button); }
-
-		void MousePos(long * x, long * y) const { m_sys_mouse->GetPosXY(x, y); }
 	private:
-		/*
+		/**
 		 * EnumSystemDevices() returns a vector with all the devices
 		 * connected to the system at the time of call.
 		 */
@@ -350,10 +346,10 @@ namespace RawInput
 				&ri_system_count,
 				sizeof(RAWINPUTDEVICELIST)) < 0) throw RawInputException("GetRawInputDeviceList()");
 
-			return std::vector<RAWINPUTDEVICELIST>(ri_sys_dev);
+			return ri_sys_dev;
 		}
 
-		/*
+		/**
 		 * GetDeviceInfo() returns a RID_DEVICE_INFO filled with a device.
 		 *
 		 * @param1: HANDLE to a device
@@ -378,7 +374,7 @@ namespace RawInput
 			return pData;
 		}
 
-		/*
+		/**
 		 * GetDeviceName() returns device name.
 		 *
 		 * @param1: HANDLE to a device
@@ -404,29 +400,26 @@ namespace RawInput
 				&pData[0],
 				&pcbSize) < 0) throw RawInputException("GetRawInputDeviceInfo(RIDI_DEVICENAME)");
 
-			return &pData[0]; // constructs Str from vector
+			return Str(pData.cbegin(), pData.cend());
 		}
 
-		/*
+		/**
 		 * CreateDevice() returns a pointer to a new device.
 		 *
 		 * @param1: DWORD corresponding to a device type
 		 */
-		RawDevicePtr CreateDevice(DWORD type)
+		RawDevicePtr CreateDevice(const DWORD type)
 		{
 			switch (type) {
 			case RIM_TYPEMOUSE:
-				return RawDevicePtr(m_sys_mouse == nullptr	// if system device is not set
-					? m_sys_mouse = new RawMouse			// use the new device as the system device and return it
-					: new RawMouse);						// else just create a new device.
+				return RawDevicePtr(new RawMouse);
+
 			case RIM_TYPEKEYBOARD:
-				return RawDevicePtr(m_sys_keyboard == nullptr
-					? m_sys_keyboard = new RawKeyboard
-					: new RawKeyboard);
+				return RawDevicePtr(new RawKeyboard);
+
 			case RIM_TYPEHID:
-				return RawDevicePtr(m_sys_hid == nullptr
-					? m_sys_hid = new RawHID
-					: new RawHID);
+				return RawDevicePtr(new RawHID);
+
 			default:
 				throw RawInputException("CreateDevice() recieved a bad type.");
 			}
@@ -435,13 +428,11 @@ namespace RawInput
 	private:
 		DeviceVec	m_ri_registered_devices;
 
-		RawdevMap	m_ri_devs;
+		RawDevMap	m_ri_devs;
 
-		RawMouse	* m_sys_mouse;
+		std::vector<RawMouse::Event::Ptr> m_onMouse;
 
-		RawKeyboard	* m_sys_keyboard;
-
-		RawHID		* m_sys_hid;
+		std::vector<RawKeyboard::Event::Ptr> m_onKeyboard;
 	};
 }
 

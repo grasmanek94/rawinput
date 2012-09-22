@@ -3,6 +3,8 @@
 
 #include "RawInputAPI.h"
 
+#include <memory>
+
 namespace RawInput
 {
 	class RawDevice {
@@ -17,6 +19,15 @@ namespace RawInput
 		virtual void Read(const RAWINPUT &) = 0;
 
 		virtual void Clean(void) = 0;
+
+		template <class DevType>
+		struct BaseEvent {
+			typedef DevType DeviceType;
+
+			typedef std::shared_ptr<BaseEvent> Ptr;
+
+			virtual void operator()(const DeviceType & device) = 0;
+		};
 	};
 }
 
