@@ -6,7 +6,7 @@
 Right now it's very simple, not much is needed, just:
   * Construct a RawInput::Input<RawInput::Unbuffered> object.
   * Update on user's WndProc function.
-  * Query for input.
+  * Subscribe to input events.
 
 The source has a demo project, all the info shown here is replicated there.
 
@@ -34,27 +34,18 @@ case WM_INPUT:
 }}}
 
 ----
-== Querying ==
+== Events ==
 
-User has the following functions for basic querying:
+Users can subscribe to mouse/keyboard events:
 
 Keyboard:
 {{{
-bool RawInput::KeyUp(const unsigned short & button) const;
-bool RawInput::KeyDown(const unsigned short & button) const;
-bool RawInput::KeyHeld(const unsigned short & button) const;
-}}}
-*Notes*: see [http://code.google.com/p/rawinput/issues/detail?id=1].
-
-Mouse:
-{{{
-bool RawInput::MouseEvent(const unsigned short & button) const;
-void RawInput::MousePos(long & x, long & y) const;
-}}}
-*Notes*: RawInput::MousePos(x, y) returns mouse's last position in it's arguments.
-
-Joystick:
-{{{
-//Not implemented.
+(*input).onMouseEvent([&](const RawInput::RawMouse & mouse) {
+	// mouse can be fully inspected here, do something with it.
+	})
+	.onKeyboardEvent([&](const RawInput::RawKeyboard & keyboard) {
+	// keyboard can be fully inspected here, do something with it.
+	})
+;
 }}}
 ----
