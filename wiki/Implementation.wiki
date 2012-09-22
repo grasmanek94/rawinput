@@ -38,7 +38,6 @@ case WM_INPUT:
 
 Users can subscribe to mouse/keyboard events:
 
-Keyboard:
 {{{
 (*input).onMouseEvent([&](const RawInput::RawMouse & mouse) {
 	// mouse can be fully inspected here, do something with it.
