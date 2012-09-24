@@ -18,8 +18,6 @@ namespace RawInput
 
 		virtual void Read(const RAWINPUT &) = 0;
 
-		virtual void Clean(void) = 0;
-
 		template <class DevType>
 		struct BaseEvent {
 			typedef DevType DeviceType;

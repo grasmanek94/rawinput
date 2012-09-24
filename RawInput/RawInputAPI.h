@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 
-// Project http://code.google.com/p/rawinput/
+// Project http://rawinput.googlecode.com
 
 // MSDN RawInput http://msdn.microsoft.com/en-us/library/ms645536%28VS.85%29.aspx
 

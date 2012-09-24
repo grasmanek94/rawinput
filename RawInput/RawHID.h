@@ -15,8 +15,6 @@ namespace RawInput
 
 		virtual void Read(const RAWINPUT &);
 
-		virtual void Clean(void);
-
 		const RAWHID & GetData(void) const;
 	private:
 		RAWHID m_data;

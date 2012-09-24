@@ -22,23 +22,6 @@ namespace RawInput
 	void RawMouse::Read(const RAWINPUT & ri)
 	{
 		m_data = ri.data.mouse;
-
-//#ifndef NDEBUG
-//		wcout << m_data.usFlags
-//			//<< TEXT('\t') << m_data.ulButtons
-//			<< TEXT('\t') << m_data.usButtonFlags
-//			<< TEXT('\t') << short(m_data.usButtonData)
-//			<< TEXT('\t') << m_data.ulRawButtons
-//			<< TEXT('\t') << m_data.lLastX
-//			<< TEXT('\t') << m_data.lLastY
-//			//<< TEXT('\t') << m_data.ulExtraInformation
-//			<< TEXT('\n');
-//#endif
-	}
-
-	void RawMouse::Clean(void)
-	{
-		//m_data = RAWMOUSE();
 	}
 
 	const RAWMOUSE & RawMouse::GetData(void) const

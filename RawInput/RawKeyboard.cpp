@@ -24,11 +24,6 @@ namespace RawInput
 		m_data = ri.data.keyboard;
 	}
 
-	void RawKeyboard::Clean(void)
-	{
-		m_data = RAWKEYBOARD();
-	}
-
 	const RAWKEYBOARD & RawKeyboard::GetData(void) const
 	{
 		return m_data;
