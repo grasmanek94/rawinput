@@ -34,8 +34,6 @@ namespace RawInput
 
 		virtual void Read(const RAWINPUT &);
 
-		virtual void Clean(void);
-
 		const RAWMOUSE & GetData(void) const;
 
 		/*

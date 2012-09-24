@@ -15,8 +15,6 @@ namespace RawInput
 
 		virtual void Read(const RAWINPUT &);
 
-		virtual void Clean(void);
-
 		const RAWKEYBOARD & GetData(void) const;
 
 		/**

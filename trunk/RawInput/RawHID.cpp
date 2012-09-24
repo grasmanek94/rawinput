@@ -32,11 +32,6 @@ namespace RawInput
 #endif
 	}
 
-	void RawHID::Clean(void)
-	{
-		m_data = RAWHID();
-	}
-
 	const RAWHID & RawHID::GetData(void) const
 	{
 		return m_data;
