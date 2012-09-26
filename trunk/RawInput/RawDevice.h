@@ -3,6 +3,7 @@
 
 #include "RawInputAPI.h"
 
+#include <functional>
 #include <memory>
 
 namespace RawInput
@@ -12,6 +13,21 @@ namespace RawInput
 
 		const RawDevice & operator=(const RawDevice &);
 	public:
+		typedef HANDLE Handle;
+
+		typedef std::shared_ptr<RawDevice> Ptr;
+
+		//http://www.microsoft.com/whdc/archive/HID_HWID.mspx
+		enum usage_page {
+			HID_USAGE_PAGE				= 0x01
+		};
+
+		enum usage {
+			HID_DEVICE_SYSTEM_MOUSE		= 0x02,
+			HID_DEVICE_SYSTEM_KEYBOARD	= 0x06,
+			HID_DEVICE_SYSTEM_GAME		= 0x04
+		};
+
 		explicit RawDevice(void) {}
 
 		virtual ~RawDevice(void) {}
@@ -19,12 +35,12 @@ namespace RawInput
 		virtual void Read(const RAWINPUT &) = 0;
 
 		template <class DevType>
-		struct BaseEvent {
-			typedef DevType DeviceType;
+		struct DeviceEvent : public std::function<void(const DevType &)> {
 
-			typedef std::shared_ptr<BaseEvent> Ptr;
-
-			virtual void operator()(const DeviceType & device) = 0;
+			DeviceEvent(const typename DeviceEvent::function && callable)
+				: function<void(const DevType &)>(callable)
+			{
+			}
 		};
 	};
 }

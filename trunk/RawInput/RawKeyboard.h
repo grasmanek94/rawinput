@@ -39,28 +39,7 @@ namespace RawInput
 		bool KeyHeld(unsigned short) const;
 
 	public:
-		typedef BaseEvent<RawKeyboard> Event;
-
-		template <class Callable>
-		class Connect : public Event
-		{
-		public:
-			Connect(Callable & callable)
-				: m_callable(callable) {
-			}
-
-			virtual void operator()(const Event::DeviceType & dev) override {
-				m_callable(dev);
-			}
-
-		private:
-			Connect(const Connect &);
-
-			Connect & operator=(const Connect &);
-
-		private:
-			const Callable & m_callable;
-		};
+		typedef DeviceEvent<RawKeyboard> Event;
 
 	private:
 		RAWKEYBOARD m_data;

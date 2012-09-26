@@ -7,12 +7,9 @@ Project http://rawinput.googlecode.com
 #include "..\RawInput\RawInputAPI.h"
 #include "..\RawInput\RawInput.h"
 
+#include <iostream>
 #include <iomanip>
 #include <memory>
-
-typedef RawInput::Input<RawInput::Unbuffered> InputSys;
-
-std::shared_ptr<InputSys> input;
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
@@ -20,6 +17,9 @@ HWND SetupWindow(HINSTANCE instance);
 
 wchar_t app_name[] = TEXT("RawInput Test");
 
+typedef RawInput::Input<RawInput::Unbuffered> InputSys;
+
+std::unique_ptr<InputSys> input;
 
 //int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR /*lpCmdLine*/, int /*nShowCmd*/)
 int main()
@@ -28,12 +28,10 @@ int main()
 
 	HWND hwnd = SetupWindow(hInstance);
 
-	input = std::shared_ptr<InputSys>(new InputSys(nullptr/*, MOUSE_FLAGS, KEYB_FLAGS, HID_FLAGS*/));
+	input = std::unique_ptr<InputSys>(new InputSys(hwnd, RIDEV_DEVNOTIFY, RIDEV_INPUTSINK/*, HID_FLAGS*/));
 
 	(*input)
-		.onMouseEvent([&](const RawInput::RawMouse & mouse) {
-			if (mouse.Button(RawInput::RawMouse::BUTTON_2_DOWN)) ::PostMessage(hwnd, WM_CLOSE, 0, 0);
-
+		.connect(RawInput::RawMouse::Event([&](const RawInput::RawMouse & mouse) {
 			std::wcout
 				<< TEXT("[")
 				<< std::dec << std::setw(4) << mouse.GetData().usFlags << TEXT(":")
@@ -45,10 +43,11 @@ int main()
 				<< std::dec << std::setw(4) << mouse.GetData().lLastY << TEXT(":")
 				<< std::dec << std::setw(4) << mouse.GetData().ulExtraInformation
 				<< TEXT("]")
+				<< (mouse.Button(RawInput::RawMouse::BUTTON_2_DOWN|RawInput::RawMouse::BUTTON_2_UP) ? "!" : "") //::PostMessage(hwnd, WM_CLOSE, 0, 0);
 
 				<< std::endl;
-		})
-		.onKeyboardEvent([&](const RawInput::RawKeyboard & keyboard) {
+		}))
+		.connect(RawInput::RawKeyboard::Event([&](const RawInput::RawKeyboard & keyboard) {
 			if (keyboard.KeyDown('Q') || keyboard.KeyUp(VK_END)) ::PostMessage(hwnd, WM_CLOSE, 0, 0);
 
 			std::wcout
@@ -61,15 +60,24 @@ int main()
 				<< std::setw(4) << keyboard.GetData().VKey << ":"
 				<< std::setw(4) << keyboard.GetData().Message << ":"
 				<< std::setw(4) << keyboard.GetData().ExtraInformation
+
+				<< std::endl;
+		}))
+		.connect(RawInput::RawHID::Event([&](const RawInput::RawHID & hid) {
+			std::wcout
+				<< hid.GetData().dwSizeHid
+				<< hid.GetData().dwCount
+				<< hid.GetData().bRawData // bRawData is actually an array with sizeof(dwSizeHid*dwCount)
+
 				<< "]\n"
 
 				<< std::endl;
-		});
+		}));
 
 	MSG msg = {0};
 
 	while (msg.message != WM_QUIT) {
-		while (!::PeekMessage(&msg, nullptr, 0u, 0u, PM_NOREMOVE)) {
+		while (!::PeekMessage(&msg, hwnd, 0u, 0u, PM_NOREMOVE)) {
 			::WaitMessage();
 		}
 
@@ -94,6 +102,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_INPUT_DEVICE_CHANGE:
 		return input->Change(wParam, lParam); // WIP - Only for Windows Vista or greater.
 	case WM_INPUT:
+		std::wcout << "-{" << ::GetFocus() << "}-";
 		return input->Update(hWnd, message, wParam, lParam);
 	default:
 		return ::DefWindowProc(hWnd, message, wParam, lParam);
@@ -119,7 +128,7 @@ HWND SetupWindow(HINSTANCE hInstance)
 
 	::RegisterClassEx(&wndclassex);
 
-	HWND hwnd = ::CreateWindowEx(
+	return ::CreateWindowEx(
 		WS_EX_OVERLAPPEDWINDOW,
 		app_name,
 		app_name,
@@ -132,6 +141,4 @@ HWND SetupWindow(HINSTANCE hInstance)
 		nullptr,
 		hInstance,
 		nullptr);
-
-	return hwnd;
 }
