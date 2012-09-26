@@ -116,26 +116,11 @@ namespace RawInput
 	>
 	class Input : public BufferingPolicy
 	{
-		typedef HANDLE DeviceHandle;
-
-		typedef std::shared_ptr<RawDevice> RawDevicePtr;
-
-		typedef std::map<DeviceHandle, RawDevicePtr> RawDevMap;
+		typedef std::map<RawDevice::Handle, RawDevice::Ptr> RawDevMap;
 
 		typedef std::vector<RAWINPUTDEVICE> DeviceVec;
 
 		typedef std::wstring Str;
-
-		//http://www.microsoft.com/whdc/archive/HID_HWID.mspx
-		enum usage_page {
-			HID_USAGE_PAGE				= 0x01
-		};
-
-		enum usage {
-			HID_DEVICE_SYSTEM_MOUSE		= 0x02,
-			HID_DEVICE_SYSTEM_KEYBOARD	= 0x06,
-			HID_DEVICE_SYSTEM_GAME		= 0x04
-		};
 
 		Input(const Input &);
 
@@ -153,9 +138,9 @@ namespace RawInput
 			m_onKeyboard()
 		{
 			const USHORT usage_table[] = {
-				HID_DEVICE_SYSTEM_MOUSE,	// RIM_TYPEMOUSE == [0]
-				HID_DEVICE_SYSTEM_KEYBOARD,	// RIM_TYPEKEYBOARD == [1]
-				HID_DEVICE_SYSTEM_GAME,		// RIM_TYPEHID == [2]
+				RawDevice::HID_DEVICE_SYSTEM_MOUSE,	// RIM_TYPEMOUSE == [0]
+				RawDevice::HID_DEVICE_SYSTEM_KEYBOARD,	// RIM_TYPEKEYBOARD == [1]
+				RawDevice::HID_DEVICE_SYSTEM_GAME,		// RIM_TYPEHID == [2]
 			};
 
 			const DWORD flags_table[] = {
@@ -180,7 +165,7 @@ namespace RawInput
 					const RID_DEVICE_INFO & info = this->GetDeviceInfo(ridl.hDevice);
 
 					RAWINPUTDEVICE ri_dev = {
-						HID_USAGE_PAGE,
+						RawDevice::HID_USAGE_PAGE,
 						usage_table[info.dwType],
 						flags_table[info.dwType],
 						hwnd
@@ -246,7 +231,7 @@ namespace RawInput
 				const auto & mouse = static_cast<RawMouse &>(*device.get());
 
 				for (auto & event : m_onMouse) {
-					(*event)(mouse);
+					(event)(mouse);
 				}
 
 				break;
@@ -257,13 +242,22 @@ namespace RawInput
 				const auto & keyboard = static_cast<RawKeyboard &>(*device.get());
 
 				for (auto & event : m_onKeyboard) {
-					(*event)(keyboard);
+					(event)(keyboard);
 				}
 
 				break;
 				}
 
 			case RIM_TYPEHID:
+				{
+				const auto & hid = static_cast<RawHID &>(*device.get());
+
+				for (auto & event : m_onHid) {
+					(event)(hid);
+				}
+				break;
+				}
+
 			default:
 				; // not supported.
 			}
@@ -284,7 +278,7 @@ namespace RawInput
 				// Handle arrival
 
 				#ifndef NDEBUG
-				std::wcout << TEXT("RawDevice arrival detected: ") << this->GetDeviceName(reinterpret_cast<HANDLE>(lParam));
+				std::wcout << TEXT("RawDevice arrival detected: ") << this->GetDeviceName(reinterpret_cast<HANDLE>(lParam)) << std::endl;
 				#endif
 
 				break;
@@ -293,7 +287,7 @@ namespace RawInput
 				// Handle removal
 
 				#ifndef NDEBUG
-				std::wcout << TEXT("RawDevice removal detected: ") << this->GetDeviceName(reinterpret_cast<HANDLE>(lParam));
+				std::wcout << TEXT("RawDevice removal detected: ") << this->GetDeviceName(reinterpret_cast<HANDLE>(lParam)) << std::endl;
 				#endif
 
 				break;
@@ -303,18 +297,23 @@ namespace RawInput
 		}
 
 	public:
-		template <class Callable>
-		Input & onMouseEvent(Callable && callable)
+		Input & connect(RawMouse::Event && callable)
 		{
-			m_onMouse.push_back(RawMouse::Event::Ptr(new RawMouse::Connect<Callable>(callable)));
+			m_onMouse.push_back(callable);
 
 			return *this;
 		}
 
-		template <class Callable>
-		Input & onKeyboardEvent(Callable && callable)
+		Input & connect(RawKeyboard::Event && callable)
 		{
-			m_onKeyboard.push_back(RawKeyboard::Event::Ptr(new RawKeyboard::Connect<Callable>(callable)));
+			m_onKeyboard.push_back(callable);
+
+			return *this;
+		}
+
+		Input & connect(RawHID::Event && callable)
+		{
+			m_onHid.push_back(callable);
 
 			return *this;
 		}
@@ -408,17 +407,17 @@ namespace RawInput
 		 *
 		 * @param1: DWORD corresponding to a device type
 		 */
-		RawDevicePtr CreateDevice(const DWORD type)
+		RawDevice::Ptr CreateDevice(const DWORD type)
 		{
 			switch (type) {
 			case RIM_TYPEMOUSE:
-				return RawDevicePtr(new RawMouse);
+				return RawDevice::Ptr(new RawMouse);
 
 			case RIM_TYPEKEYBOARD:
-				return RawDevicePtr(new RawKeyboard);
+				return RawDevice::Ptr(new RawKeyboard);
 
 			case RIM_TYPEHID:
-				return RawDevicePtr(new RawHID);
+				return RawDevice::Ptr(new RawHID);
 
 			default:
 				throw RawInputException("CreateDevice() recieved a bad type.");
@@ -430,9 +429,11 @@ namespace RawInput
 
 		RawDevMap	m_ri_devs;
 
-		std::vector<RawMouse::Event::Ptr> m_onMouse;
+		std::vector<RawMouse::Event> m_onMouse;
 
-		std::vector<RawKeyboard::Event::Ptr> m_onKeyboard;
+		std::vector<RawKeyboard::Event> m_onKeyboard;
+
+		std::vector<RawHID::Event> m_onHid;
 	};
 }
 

@@ -32,51 +32,45 @@ namespace RawInput
 
 		virtual ~RawMouse(void);
 
+		/** \brief Reads the Windows structure.
+		 *
+		 * \param button one of Mouse::mouse_flags enum.
+		 *
+		 * \return true if button flag is true.
+		 */
 		virtual void Read(const RAWINPUT &);
-
+		
+		/** \brief Used to read the raw mouse data.
+		 *
+		 * \param button one of Mouse::mouse_flags enum.
+		 *
+		 * \return true if button flag is true.
+		 */
 		const RAWMOUSE & GetData(void) const;
 
-		/*
-		 * Button() returns true on button event.
+		/** \brief Used to query button state.
 		 *
-		 * @param1: one of Mouse::mouse_flags enum.
-		 */
-		bool Button(unsigned short) const;
-
-		/*
-		 * GetPosXY() returns mouse's x/y position.
+		 * \param button one of Mouse::mouse_flags enum.
 		 *
-		 * @param1: returns mouse last position X.
-		 * @param2: returns mouse last position Y.
+		 * \return true if button flag is true.
 		 */
-		void GetPosXY(long *, long *) const;
+		bool Button(unsigned short button) const;
 
-		/*
-		 * GetWheelDelta() returns mouse's wheel movement.
+		/** \brief Gets mouse (x, y) coordinates.
+		 *
+		 * \param x returns mouse last position X.
+		 * \param y returns mouse last position Y.
+		 */
+		void GetPosXY(long * x, long *y) const;
+
+		/** \brief Gets wheel movement delta.
+		 *
+		 * \return a value representing the wheel's movement delta.
 		 */
 		short GetWheelDelta(void) const;
 
-		typedef BaseEvent<RawMouse> Event;
-
-		template <class Callable>
-		class Connect : public Event
-		{
-		public:
-			Connect(Callable & callable)
-				: m_callable(callable) {
-			}
-
-			virtual void operator()(const Event::DeviceType & dev) override {
-				m_callable(dev);
-			}
-
-		private:
-			Connect(const Connect &);
-			Connect & operator=(const Connect &);
-
-		private:
-			const Callable & m_callable;
-		};
+	public:
+		typedef DeviceEvent<RawMouse> Event;
 
 	private:
 		RAWMOUSE m_data;

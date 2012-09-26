@@ -16,6 +16,10 @@ namespace RawInput
 		virtual void Read(const RAWINPUT &);
 
 		const RAWHID & GetData(void) const;
+
+	public:
+		typedef DeviceEvent<RawHID> Event;
+
 	private:
 		RAWHID m_data;
 	};
