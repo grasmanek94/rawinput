@@ -9,6 +9,8 @@ namespace RawInput
 {
 	class RawMouse : public RawDevice {
 	public:
+		typedef DeviceEvent<RawMouse> Event;
+
 		enum mouse_flags {
 			BUTTON_1_DOWN	= RI_MOUSE_BUTTON_1_DOWN,
 			BUTTON_1_UP		= RI_MOUSE_BUTTON_1_UP,
@@ -28,9 +30,9 @@ namespace RawInput
 			WHEEL			= RI_MOUSE_WHEEL
 		};
 
-		explicit RawMouse(void);
+		explicit RawMouse( Handle handle );
 
-		virtual ~RawMouse(void);
+		virtual ~RawMouse( void );
 
 		/** \brief Reads the Windows structure.
 		 *
@@ -38,7 +40,7 @@ namespace RawInput
 		 *
 		 * \return true if button flag is true.
 		 */
-		virtual void Read(const RAWINPUT &);
+		virtual void Read( const RAWINPUT & ri ) override;
 		
 		/** \brief Used to read the raw mouse data.
 		 *
@@ -46,7 +48,7 @@ namespace RawInput
 		 *
 		 * \return true if button flag is true.
 		 */
-		const RAWMOUSE & GetData(void) const;
+		const RAWMOUSE & GetData( void ) const;
 
 		/** \brief Used to query button state.
 		 *
@@ -54,23 +56,20 @@ namespace RawInput
 		 *
 		 * \return true if button flag is true.
 		 */
-		bool Button(unsigned short button) const;
+		bool Button( unsigned short button ) const;
 
 		/** \brief Gets mouse (x, y) coordinates.
 		 *
 		 * \param x returns mouse last position X.
 		 * \param y returns mouse last position Y.
 		 */
-		void GetPosXY(long * x, long *y) const;
+		void GetPosXY( long * x, long * y ) const;
 
 		/** \brief Gets wheel movement delta.
 		 *
 		 * \return a value representing the wheel's movement delta.
 		 */
-		short GetWheelDelta(void) const;
-
-	public:
-		typedef DeviceEvent<RawMouse> Event;
+		short GetWheelDelta( void ) const;
 
 	private:
 		RAWMOUSE m_data;

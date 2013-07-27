@@ -9,16 +9,15 @@ namespace RawInput
 {
 	class RawHID : public RawDevice {
 	public:
-		explicit RawHID(void);
-
-		virtual ~RawHID(void);
-
-		virtual void Read(const RAWINPUT &);
-
-		const RAWHID & GetData(void) const;
-
-	public:
 		typedef DeviceEvent<RawHID> Event;
+
+		explicit RawHID( Handle handle );
+
+		virtual ~RawHID( void );
+
+		virtual void Read( const RAWINPUT & ri ) override;
+
+		const RAWHID & GetData( void ) const;
 
 	private:
 		RAWHID m_data;

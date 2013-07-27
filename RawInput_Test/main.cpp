@@ -4,120 +4,157 @@ Project http://rawinput.googlecode.com
 
 ********************************************************************************/
 
-#include "..\RawInput\RawInputAPI.h"
-#include "..\RawInput\RawInput.h"
+#include <RawInput\RawInputAPI.h>
+#include <RawInput\RawInput.h>
 
 #include <iostream>
 #include <iomanip>
 #include <memory>
 
-LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+#include <tchar.h>
 
-HWND SetupWindow(HINSTANCE instance);
+LRESULT CALLBACK WndProc( HWND, UINT, WPARAM, LPARAM );
 
-wchar_t app_name[] = TEXT("RawInput Test");
+HWND SetupWindow( HINSTANCE & );
 
-typedef RawInput::Input<RawInput::Unbuffered> InputSys;
+const wchar_t app_name[] = TEXT("RawInput Test");
 
-std::unique_ptr<InputSys> input;
+typedef RawInput::Input<> InputSys; // Instantiation with default template parameter.
 
-//int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR /*lpCmdLine*/, int /*nShowCmd*/)
-int main()
+std::shared_ptr<InputSys> input;
+
+int _tmain( int, TCHAR*[] )
 {
-	HINSTANCE hInstance = nullptr;
+	HINSTANCE instance;
+	HWND hwnd = SetupWindow(instance);
 
-	HWND hwnd = SetupWindow(hInstance);
-
-	input = std::unique_ptr<InputSys>(new InputSys(hwnd, RIDEV_DEVNOTIFY, RIDEV_INPUTSINK/*, HID_FLAGS*/));
+	input = std::make_shared<InputSys>(hwnd);
 
 	(*input)
-		.connect(RawInput::RawMouse::Event([&](const RawInput::RawMouse & mouse) {
+		.connect(RawInput::RawMouse::Event([&]( const RawInput::RawMouse & mouse )
+		{
+			const char delim = ',';
+
 			std::wcout
-				<< TEXT("[")
-				<< std::dec << std::setw(4) << mouse.GetData().usFlags << TEXT(":")
-				<< std::hex << std::setw(8) << mouse.GetData().ulButtons << TEXT(":")
-				<< std::dec << std::setw(4) << mouse.GetData().usButtonFlags << TEXT(":")
-				<< std::dec << std::setw(4) << static_cast<short>(mouse.GetData().usButtonData) << TEXT(":")
-				<< std::dec << std::setw(4) << mouse.GetData().ulRawButtons << TEXT(":")
-				<< std::dec << std::setw(4) << mouse.GetData().lLastX << TEXT(":")
-				<< std::dec << std::setw(4) << mouse.GetData().lLastY << TEXT(":")
+				<< TEXT("[") << std::hex << mouse.GetHandle() << TEXT("]") << std::dec
+
+				<< std::dec << std::setw(4) << mouse.GetData().usFlags << delim
+
+				<< std::hex << std::setw(8) << mouse.GetData().ulButtons << delim
+
+				<< std::dec << std::setw(4) << mouse.GetData().usButtonFlags << delim
+
+				<< std::dec << std::setw(4) << static_cast<short>(mouse.GetData().usButtonData) << delim
+
+				<< std::dec << std::setw(4) << mouse.GetData().ulRawButtons << delim
+
+				<< std::dec << std::setw(4) << mouse.GetData().lLastX << delim
+				<< std::dec << std::setw(4) << mouse.GetData().lLastY << delim
+
 				<< std::dec << std::setw(4) << mouse.GetData().ulExtraInformation
-				<< TEXT("]")
-				<< (mouse.Button(RawInput::RawMouse::BUTTON_2_DOWN|RawInput::RawMouse::BUTTON_2_UP) ? "!" : "") //::PostMessage(hwnd, WM_CLOSE, 0, 0);
+
+				<< (mouse.Button(RawInput::RawMouse::BUTTON_1_DOWN|RawInput::RawMouse::BUTTON_2_DOWN) ? "!" : "")
+
+				<< (mouse.GetWheelDelta() == 0 ? ' ' :
+					mouse.GetWheelDelta() <  0 ? '<' : '>')
 
 				<< std::endl;
 		}))
-		.connect(RawInput::RawKeyboard::Event([&](const RawInput::RawKeyboard & keyboard) {
-			if (keyboard.KeyDown('Q') || keyboard.KeyUp(VK_END)) ::PostMessage(hwnd, WM_CLOSE, 0, 0);
+		.connect(RawInput::RawKeyboard::Event([&]( const RawInput::RawKeyboard & keyboard )
+		{
+			const char delim = ',';
 
 			std::wcout
-				<< (keyboard.GetData().Flags & RI_KEY_BREAK ? TEXT("B") : TEXT("M"))
+				<< TEXT("[") << std::hex << keyboard.GetHandle() << TEXT("]") << std::dec
+
+				<< (keyboard.GetData().Flags & RI_KEY_BREAK ? TEXT("[B]") /*Break*/ : TEXT("[M]") /*Make*/) << delim
+				<< std::hex << std::setw(4) << keyboard.GetData().MakeCode << delim
 				
-				<< "["
-				<< std::setw(4) << keyboard.GetData().MakeCode << ":"
-				<< std::setw(4) << keyboard.GetData().Flags << ":"
-				<< std::setw(4) << keyboard.GetData().Reserved << ":"
-				<< std::setw(4) << keyboard.GetData().VKey << ":"
-				<< std::setw(4) << keyboard.GetData().Message << ":"
-				<< std::setw(4) << keyboard.GetData().ExtraInformation
+				<< std::dec << std::setw(4) << keyboard.GetData().Flags << delim
 
-				<< std::endl;
+				<< std::dec << std::setw(4) << keyboard.GetData().Reserved << delim
+
+				<< std::hex << std::setw(4) << keyboard.GetData().VKey << delim
+
+				<< std::hex << std::setw(4) << keyboard.GetData().Message << delim
+
+				<< std::dec << std::setw(4) << keyboard.GetData().ExtraInformation;
+
+			auto vk = keyboard.GetData().VKey;
+			if (vk < 'A' || vk > 'Z')
+				std::wcout << '(' << std::hex << vk << ')' << std::endl;
+			else
+				std::wcout << '(' << char(vk) << ')' << std::endl;
+
+			if (keyboard.KeyDown(VK_SPACE) || keyboard.KeyUp(VK_END)) ::PostMessage(hwnd, WM_CLOSE, 0, 0);
 		}))
-		.connect(RawInput::RawHID::Event([&](const RawInput::RawHID & hid) {
-			std::wcout
-				<< hid.GetData().dwSizeHid
-				<< hid.GetData().dwCount
-				<< hid.GetData().bRawData // bRawData is actually an array with sizeof(dwSizeHid*dwCount)
+		.connect(RawInput::RawHID::Event([&]( const RawInput::RawHID & hid )
+		{
+			const char delim = ',';
 
-				<< "]\n"
+			std::wcout
+				<< TEXT("[") << std::hex << hid.GetHandle() << TEXT("] ")
+				<< std::dec
+				<< hid.GetData().dwSizeHid << delim
+				<< hid.GetData().dwCount << delim
+				<< hid.GetData().bRawData // bRawData is actually an array with sizeof(dwSizeHid*dwCount)
 
 				<< std::endl;
 		}));
 
-	MSG msg = {0};
-
-	while (msg.message != WM_QUIT) {
+	bool done = false;
+	MSG msg;
+	do {
 		while (!::PeekMessage(&msg, hwnd, 0u, 0u, PM_NOREMOVE)) {
 			::WaitMessage();
 		}
 
 		while (::PeekMessage(&msg, nullptr, 0u, 0u, PM_REMOVE)) {
-			::TranslateMessage(&msg);
-			::DispatchMessage(&msg);
+			if (!::IsDialogMessage(hwnd, &msg)) {
+				::TranslateMessage(&msg);
+				::DispatchMessage(&msg);
+
+				if (msg.message == WM_QUIT) done = true;
+			}
 		}
-	}
+	} while (!done);
 
-	input.reset();
+	input.reset(); // Its better to destroy the RawInput object before unregistering the class.
 
-	::UnregisterClass(app_name, hInstance);
+	::UnregisterClass(app_name, instance);
 }
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
 {
 	switch (message) {
 	case WM_CLOSE:
 		::DestroyWindow(hWnd); return 0;
+
 	case WM_DESTROY:
 		::PostQuitMessage(0); return 0;
+
 	case WM_INPUT_DEVICE_CHANGE:
 		return input->Change(wParam, lParam); // WIP - Only for Windows Vista or greater.
+
 	case WM_INPUT:
-		std::wcout << "-{" << ::GetFocus() << "}-";
 		return input->Update(hWnd, message, wParam, lParam);
+
 	default:
 		return ::DefWindowProc(hWnd, message, wParam, lParam);
 	}
 }
 
-HWND SetupWindow(HINSTANCE hInstance)
+HWND SetupWindow( HINSTANCE & instance )
 {
+	instance = ::GetModuleHandle(nullptr);
+
 	WNDCLASSEX wndclassex = {
 		sizeof(WNDCLASSEX),						// cbSize
 		CS_HREDRAW|CS_VREDRAW,					// style
 		WndProc,								// lpfnWndProc
 		0,										// cbClsExtra
 		0,										// cbWndExtra
-		hInstance,								// hInstance
+		instance,								// hInstance
 		::LoadIcon(nullptr, IDI_APPLICATION),	// hIcon
 		::LoadCursor(nullptr, IDC_ARROW),		// hCursor
 		(HBRUSH)::GetStockObject(NULL_BRUSH),	// hbrBackground
@@ -137,8 +174,8 @@ HWND SetupWindow(HINSTANCE hInstance)
 		CW_USEDEFAULT,
 		640,
 		480,
-		::GetDesktopWindow(),
 		nullptr,
-		hInstance,
+		nullptr,
+		instance,
 		nullptr);
 }

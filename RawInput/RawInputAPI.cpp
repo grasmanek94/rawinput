@@ -1,5 +1,5 @@
-// stdafx.cpp : source file that includes just the standard includes
-// RawInput.pch will be the pre-compiled header
+// RawInputAPI.cpp : source file that includes just the standard includes
+// RawInputAPI.pch will be the pre-compiled header
 // RawInputAPI.obj will contain the pre-compiled type information
 
 #include "RawInputAPI.h"
