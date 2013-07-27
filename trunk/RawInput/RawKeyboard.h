@@ -9,37 +9,31 @@ namespace RawInput
 {
 	class RawKeyboard : public RawDevice {
 	public:
-		explicit RawKeyboard(void);
-
-		virtual ~RawKeyboard(void);
-
-		virtual void Read(const RAWINPUT &);
-
-		const RAWKEYBOARD & GetData(void) const;
-
-		/**
-		 * KeyUp() returns true on key release.
-		 *
-		 * @param1: one VK code.
-		 */
-		bool KeyUp(unsigned short) const;
-
-		/**
-		 * KeyDown() returns true on key press.
-		 *
-		 * @param1: one VK code.
-		 */
-		bool KeyDown(unsigned short) const;
-
-		/**
-		 * KeyHeld() returns true while key is pressed.
-		 *
-		 * @param1: one VK code.
-		 */
-		bool KeyHeld(unsigned short) const;
-
-	public:
 		typedef DeviceEvent<RawKeyboard> Event;
+
+		explicit RawKeyboard( Handle handle );
+
+		virtual ~RawKeyboard( void );
+
+		virtual void Read( const RAWINPUT & ri ) override;
+
+		const RAWKEYBOARD & GetData( void ) const;
+
+		/** \brief used to query if key was released.
+		 *
+		 * \param key VirtualKey code.
+		 *
+		 * \return true if key was released.
+		 */
+		bool KeyUp( unsigned short key ) const;
+
+		/** \brief used to query if key was pressed.
+		 *
+		 * \param key VirtualKey code.
+		 *
+		 * \return true if key was pressed.
+		 */
+		bool KeyDown( unsigned short key ) const;
 
 	private:
 		RAWKEYBOARD m_data;

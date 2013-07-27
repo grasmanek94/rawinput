@@ -2,7 +2,7 @@
 
 // Project http://rawinput.googlecode.com
 
-// MSDN RawInput http://msdn.microsoft.com/en-us/library/ms645536%28VS.85%29.aspx
+// MSDN RawInput http://msdn.microsoft.com/en-us/library/windows/desktop/ms645536(v=vs.85).aspx
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -10,13 +10,6 @@
 
 #ifndef RawInputAPI_h__
 #define RawInputAPI_h__
-
-
-#ifdef RAWINPUT_EXPORTS
-#define RAWINPUT_API __declspec(dllexport)
-#else
-#define RAWINPUT_API __declspec(dllimport)
-#endif
 
 
 #ifndef WIN32_LEAN_AND_MEAN

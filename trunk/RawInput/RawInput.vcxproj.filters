@@ -7,6 +7,9 @@
     <Filter Include="Core">
       <UniqueIdentifier>{0ae6b4cd-8e2d-4390-9026-59dc96421727}</UniqueIdentifier>
     </Filter>
+    <Filter Include="pch">
+      <UniqueIdentifier>{ab26a7a3-c1b7-401e-910f-aab607d48739}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RawMouse.h">
@@ -21,11 +24,11 @@
     <ClInclude Include="RawDevice.h">
       <Filter>Devices</Filter>
     </ClInclude>
-    <ClInclude Include="RawInputAPI.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="RawInput.h">
       <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="RawInputAPI.h">
+      <Filter>pch</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -39,7 +42,7 @@
       <Filter>Devices</Filter>
     </ClCompile>
     <ClCompile Include="RawInputAPI.cpp">
-      <Filter>Core</Filter>
+      <Filter>pch</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

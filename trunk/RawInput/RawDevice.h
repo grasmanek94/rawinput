@@ -9,9 +9,10 @@
 namespace RawInput
 {
 	class RawDevice {
-		RawDevice(const RawDevice &);
+		RawDevice( const RawDevice & );
 
-		const RawDevice & operator=(const RawDevice &);
+		const RawDevice & operator=( const RawDevice & );
+
 	public:
 		typedef HANDLE Handle;
 
@@ -22,26 +23,32 @@ namespace RawInput
 			HID_USAGE_PAGE				= 0x01
 		};
 
-		enum usage {
+		enum usage_id {
+			HID_DEVICE_SYSTEM_POINTER	= 0x01,
 			HID_DEVICE_SYSTEM_MOUSE		= 0x02,
+			HID_DEVICE_SYSTEM_JOYSTICK	= 0x04,
+			HID_DEVICE_SYSTEM_GAMEPAD	= 0x05,
 			HID_DEVICE_SYSTEM_KEYBOARD	= 0x06,
-			HID_DEVICE_SYSTEM_GAME		= 0x04
+			HID_DEVICE_SYSTEM_KEYPAD	= 0x07,
+			HID_DEVICE_SYSTEM_CONTROL	= 0x08,
 		};
-
-		explicit RawDevice(void) {}
-
-		virtual ~RawDevice(void) {}
-
-		virtual void Read(const RAWINPUT &) = 0;
 
 		template <class DevType>
 		struct DeviceEvent : public std::function<void(const DevType &)> {
-
-			DeviceEvent(const typename DeviceEvent::function && callable)
-				: function<void(const DevType &)>(callable)
-			{
-			}
+			DeviceEvent( const typename DeviceEvent::function && callable )
+				: function<void(const DevType &)>(callable) {}
 		};
+
+		explicit RawDevice( Handle handle ) : m_handle(handle) {}
+
+		virtual ~RawDevice( void ) {}
+
+		virtual void Read( const RAWINPUT & ri ) = 0;
+
+		Handle GetHandle( void ) const { return m_handle; }
+
+	private:
+		Handle m_handle;
 	};
 }
 
