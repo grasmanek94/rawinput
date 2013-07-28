@@ -4,7 +4,6 @@ Project http://rawinput.googlecode.com
 
 ********************************************************************************/
 
-#include <RawInput\RawInputAPI.h>
 #include <RawInput\RawInput.h>
 
 #include <iostream>
