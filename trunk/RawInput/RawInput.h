@@ -132,19 +132,18 @@ namespace RawInput
 
 	template
 	<
-		class BufferingPolicy = Unbuffered
+		class BufferingPolicy = Unbuffered,
+#ifdef UNICODE
+		class String = std::wstring
+#else
+		class String = std::string
+#endif
 	>
 	class Input : public BufferingPolicy
 	{
 		typedef std::map<RawDevice::Handle, RawDevice::Ptr> RawDevMap;
 
 		typedef std::vector<RAWINPUTDEVICE> DeviceVec;
-
-		typedef std::wstring Str;
-
-		Input(const Input &);
-
-		Input & operator=(const Input &);
 
 	public:
 		/** \brief Registers Mouse, Keyboard and Joystick/Gamepad devices.
@@ -179,7 +178,7 @@ namespace RawInput
 			const auto && ri_sysDevices = Input::EnumSystemDevices();
 
 #ifndef NDEBUG
-			std::wofstream log("RawInput.log");
+			std::basic_ofstream<String::value_type> log("RawInput.log");
 			log << TEXT("Found ") << ri_sysDevices.size() << TEXT(" devices to be registered:\n");
 #endif
 
@@ -246,7 +245,7 @@ namespace RawInput
 
 			auto it = m_ri_devs.find(rData.header.hDevice);
 
-			if (it == m_ri_devs.end()) {	// if device not found create and add new device, then read data.
+			if (it == m_ri_devs.end()) { // if device not found create and add new device, then read data.
 				auto newDev = this->CreateDevice(rData.header);
 
 				auto added = m_ri_devs.insert(std::make_pair(rData.header.hDevice, newDev));
@@ -377,34 +376,32 @@ namespace RawInput
 		{
 			UINT ri_system_count;
 
-			//Returns the number of RAWINPUTDEVICELIST structures that can be
-			//contained in the buffer to which pRawInputDeviceList points
-			//If this value is less than the number of devices attached to the
-			//system, the function returns the actual number of devices in this
-			//variable and fails with ERROR_INSUFFICIENT_BUFFER.
+			// Returns the number of RAWINPUTDEVICELIST structures that can be
+			// contained in the buffer to which pRawInputDeviceList points
+			// If this value is less than the number of devices attached to the
+			// system, the function returns the actual number of devices in this
+			// variable and fails with ERROR_INSUFFICIENT_BUFFER.
 			if (::GetRawInputDeviceList(
 				nullptr,
 				&ri_system_count,
-				sizeof(RAWINPUTDEVICELIST)) < 0) throw RawInputException("GetRawInputDeviceList()");
+				sizeof(RAWINPUTDEVICELIST)) < 0) throw RawInputException(__FUNCTION__" [Couldn't get buffer size for system devices]");
 
 			std::vector<RAWINPUTDEVICELIST> ri_sys_dev(ri_system_count);
 
-			//Populates ri_sys_dev with the number of devices attached to the system.
+			// Populates ri_sys_dev with the number of devices attached to the system.
 			if (::GetRawInputDeviceList(
 				&ri_sys_dev[0],
 				&ri_system_count,
-				sizeof(RAWINPUTDEVICELIST)) < 0) throw RawInputException("GetRawInputDeviceList()");
+				sizeof(RAWINPUTDEVICELIST)) < 0) throw RawInputException(__FUNCTION__" [Couldn't get system devices]");
 
-			if (ri_sys_dev.size() != ri_system_count) throw RawInputException(__FUNCTION__"\n\n[Error while acquiring system devices]");
-
-			return ri_sys_dev;
+			return std::move(ri_sys_dev);
 		}
 
 		/** \brief queries system for device info.
 		 *
-		 * \param hDevice a handle to a device.
+		 * \param hDevice handle to a device.
 		 *
-		 * \return a RID_DEVICE_INFO with data for the requested device.
+		 * \return RID_DEVICE_INFO with data for the requested device.
 		 */
 		RID_DEVICE_INFO GetDeviceInfo( RawDevice::Handle hDevice ) const
 		{
@@ -421,39 +418,39 @@ namespace RawInput
 				hDevice,
 				RIDI_DEVICEINFO,
 				&pData,
-				&pcbSize) < 0) throw RawInputException("GetRawInputDeviceInfo(RIDI_DEVICEINFO)");
+				&pcbSize) < 0) throw RawInputException(__FUNCTION__" [Couldn't get device info]");
 
 			return pData;
 		}
 
 		/** \brief returns the system's device name.
 		 *
-		 * \param hDevice a handle to the device.
+		 * \param hDevice handle to the device.
 		 *
 		 * \return the system's device name.
 		 */
-		Str GetDeviceName( HANDLE hDevice ) const
+		String GetDeviceName( HANDLE hDevice ) const
 		{
 			UINT pcbSize;
 
-			//If successful, this function returns a non-negative number indicating the number of character copied to pData.
-			//If pData is NULL, the function returns a value of zero.
-			//If pData is not large enough for the data, the function returns -1. 
+			// If pData is NULL, the function returns a value of zero.
 			if (::GetRawInputDeviceInfo(
 				hDevice,
 				RIDI_DEVICENAME,
 				nullptr,
-				&pcbSize) != 0) throw RawInputException("GetRawInputDeviceInfo(RIDI_DEVICENAME)");
+				&pcbSize) != 0) throw RawInputException(__FUNCTION__" [Couldn't get buffer size for device name]");
 
-			Str name(pcbSize, ' ');
+			String name(pcbSize, TEXT(' '));
 
+			// If successful, this function returns a non-negative number indicating the number of character copied to pData.
+			// If pData is not large enough for the data, the function returns -1. 
 			if (::GetRawInputDeviceInfo(
 				hDevice,
 				RIDI_DEVICENAME,
 				&name[0],
-				&pcbSize) < 0) throw RawInputException("GetRawInputDeviceInfo(RIDI_DEVICENAME)");
+				&pcbSize) < 0) throw RawInputException(__FUNCTION__" [Couldn't get device name]");
 
-			return std::move(name);
+			return String(name.cbegin(), name.cend() - 1); // get rid of the terminating character.
 		}
 
 		/** \brief creates a new device.
@@ -475,9 +472,13 @@ namespace RawInput
 				return std::make_shared<RawHID>(info.hDevice);
 
 			default:
-				throw RawInputException(__FUNCTION__" [Received a bad device type]");
+				throw RawInputException(__FUNCTION__" [Received bad device type]");
 			}
 		}
+
+		Input(const Input &);
+
+		Input & operator=(const Input &);
 
 	private:
 		DeviceVec	m_ri_registered_devices; ///< Holds all the devices registered for raw input.

@@ -11,15 +11,6 @@
 #ifndef RawInputAPI_h__
 #define RawInputAPI_h__
 
-
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-
-#ifndef STRICT
-#define STRICT
-#endif
-
 #pragma warning(push, 0)
 #include <Windows.h>
 #pragma warning(pop)
