@@ -1,0 +1,1 @@
+A Win32 RawInput\_API wrapper using C++ modern design.
